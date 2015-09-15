@@ -3,54 +3,65 @@ __author__ = 'sarangis'
 import networkx as nx
 import matplotlib.pyplot as plt
 from networkx.algorithms.shortest_paths import *
-import math
 import random
 
 import heapq
 
+
 class PriorityQueue(object):
-    '''
-    Priority Queue based on a heap, capable of inserting a new node with desired priority, updating the priority of
-    an existing node and deleting an arbitrary node while keeping invariant
-    '''
-    def __init__(self, heap = []):
-        '''
-        If heap is not empty, make sure its heapified
-        :param heap:
-        :return:
-        '''
+    """Priority queue based on heap, capable of inserting a new node with
+    desired priority, updating the priority of an existing node and deleting
+    an abitrary node while keeping invariant"""
+
+    def __init__(self, heap=[]):
+        """if 'heap' is not empty, make sure it's heapified"""
+
         heapq.heapify(heap)
         self.heap = heap
         self.entry_finder = dict({i[-1]: i for i in heap})
-        self.REMOVED = '<remove marker>'
+        self.REMOVED = '<remove_marker>'
 
-    def insert(self, node, priority=0):
+    @property
+    def empty(self):
         '''
-        Entry finder
-        :param node:
-        :param priority:
+        This is inefficient but just look through the list and see if everything is marked for removal
         :return:
         '''
+        for i in self.heap:
+            if not isinstance(i[1], str):
+                return False
+
+        return True
+
+    def insert(self, node, priority=0):
+        """'entry_finder' bookkeeps all valid entries, which are bonded in
+        'heap'. Changing an entry in either leads to changes in both."""
+
         if node in self.entry_finder:
             self.delete(node)
-
         entry = [priority, node]
         self.entry_finder[node] = entry
-        heapq.heapify(self.heap, entry)
+        heapq.heappush(self.heap, entry)
 
     def delete(self, node):
+        """Instead of breaking invariant by direct removal of an entry, mark
+        the entry as "REMOVED" in 'heap' and remove it from 'entry_finder'.
+        Logic in 'pop()' properly takes care of the deleted nodes."""
+
         entry = self.entry_finder.pop(node)
         entry[-1] = self.REMOVED
         return entry[0]
 
     def pop(self):
+        """Any popped node marked by "REMOVED" does not return, the deleted
+        nodes might be popped or still in heap, either case is fine."""
+
         while self.heap:
             priority, node = heapq.heappop(self.heap)
             if node is not self.REMOVED:
                 del self.entry_finder[node]
                 return priority, node
-        raise KeyError("pop from an empty priority queue")
-
+        raise KeyError('pop from an empty priority queue')
 
 def draw_graph(graph, labels=None, graph_layout='shell',
                node_size=1600, node_color='blue', node_alpha=0.3,
@@ -60,7 +71,7 @@ def draw_graph(graph, labels=None, graph_layout='shell',
                text_font='sans-serif'):
 
     # create networkx graph
-    G=nx.Graph()
+    G = nx.Graph()
 
     # add edges
     edge_weights = []
@@ -102,13 +113,40 @@ def draw_graph(graph, labels=None, graph_layout='shell',
     return G
 
 def dijkstra(graph, start, end):
-    visited = {start: 0}
-    path = {}
+    cost = [float('inf')] * len(graph.nodes())
+    cost[start] = 0
+    path = [-1] * len(graph.nodes())
+    visited = []
 
-    print(graph.get_edge_data(start, 1))
+    pq = PriorityQueue()
+    pq.insert(start, priority=0)
+    while not pq.empty:
+        top = pq.pop()
+        node = top[1]
+        visited.append(node)
+        for neighbor in graph.neighbors(node):
+            edge_weight = int(graph.get_edge_data(node, neighbor)['weights'])
+            new_edge_weight = cost[node] + edge_weight
+
+            if cost[neighbor] > new_edge_weight:
+                cost[neighbor] = min(cost[neighbor], new_edge_weight)
+                path[neighbor] = node
+                pq.insert(neighbor, priority=cost[neighbor])
+
+    newpath = [end]
+    while True:
+        if end == start:
+            break
+
+        newpath.append(path[end])
+        end = path[end]
+
+    newpath.reverse()
+    print(newpath)
+    return newpath
 
 def astar(graph, start, end):
-    pass
+    return 0
 
 def main():
     graph_edges = [(0, 1), (1, 5), (1, 7), (4, 5), (4, 8), (1, 6), (3, 7), (5, 9),

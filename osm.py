@@ -3,6 +3,7 @@
 
 import re
 import xml.sax.handler
+import networkx as nx
 
 def xml2obj(src):
     """
@@ -155,7 +156,6 @@ class OSMWay:
         for tag in tags:
             if tag.attrs['k'] in OSMWay.useful_tags:
                 setattr(self, tag.attrs['k'], tag.attrs['v'])
-                # print(self.highway)
 
     @property
     def id(self):
@@ -182,6 +182,14 @@ def render(osm_map):
         w = OSMWay(way['id'], way['nd'], way['tag'])
         osmways[way['id']] = w
         ways[way['id']] = way
+
+    graph = nx.Graph()
+
+    for way in osmways.items():
+        num_nodes = len(way.nodes)
+
+        for i in range(0, num_nodes - 2):
+            graph.add_node(osmways.items())
 
     import pylab as p
 
