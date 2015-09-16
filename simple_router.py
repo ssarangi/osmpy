@@ -256,13 +256,11 @@ def findTopNode(knownNodes):
     print(topNode.id + " has the best Score!")
     return topNode
 
-def startRouting(db):
+def startRouting(db, startId, endId):
     print("<------------ Starting Routing --------------->")
     exploredNodes = []
     knownNodes = []
     tmpNodes = []
-    startId = "61842585"
-    endId = "820006950"
     maxSteps = 40
     startNode = db.getNode(startId)
     endNode = db.getNode(endId)
@@ -299,13 +297,18 @@ def startRouting(db):
 
     print("DONE")
 
+    path = [nowNode.id]
     print("I came to " + nowNode.id)
     while (nowNode.cameFrom != None):
         print(" via " + nowNode.cameFrom.id + "\t Link: http://www.openstreetmap.org/node/"+nowNode.cameFrom.id)
         nowNode = nowNode.cameFrom
+        path.append(nowNode)
+
+    return path
 
 
-db = routingDb()
-print(readDb(open(filepath,"r"),db))
-db.cleanUp()
-startRouting(db)
+if __name__ == "__main__":
+    db = routingDb()
+    print(readDb(open(filepath,"r"),db))
+    db.cleanUp()
+    startRouting(db)

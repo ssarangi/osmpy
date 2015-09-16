@@ -157,7 +157,7 @@ def read_osm(filename_or_stream, only_roads=True):
 
 import folium
 
-def plot_folium(osm):
+def plot_folium(osm, path, startId, endId):
     # get bounds from OSM data
     minLon = float(osm.bounds['minlon'])
     maxLon = float(osm.bounds['maxlon'])
@@ -167,15 +167,30 @@ def plot_folium(osm):
     centerX = (minLat + maxLat) / 2.0
     centerY = (minLon + maxLon) / 2.0
 
+    nodes = list(osm.nodes.values())
+
     map_osm = folium.Map(location=[centerX, centerY], zoom_start=13)
-    map_osm.simple_marker([list(osm.nodes.values())[0].lat, list(osm.nodes.values())[0].lon])
-    map_osm.simple_marker([list(osm.nodes.values())[-1].lat, list(osm.nodes.values())[-1].lon])
+    map_osm.simple_marker([nodes[startId].lat, nodes[startId].lon])
+    map_osm.simple_marker([nodes[endId].lat, nodes[endId].lon])
+
+
+    coordinates = [[osm.nodes[int(nodeID)].lat, osm.nodes[int(nodeID)].lon] for nodeID in path]
+    map_osm.line(coordinates, line_color='#FF0000', line_weight=5)
     map_osm.create_map(path='folium.html')
 
+
+from simple_router import *
 def main():
+    startId = 65491414
+    endId = 3217632873
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    plot_folium(osm)
+    db = routingDb()
+    print(readDb(open(sys.argv[1],"r"),db))
+    db.cleanUp()
+    nodes = list(osm.nodes.values())
+    path = startRouting(db, str(startId), str(endId))
+    plot_folium(osm, path)
 
 if __name__ == "__main__":
     main()
