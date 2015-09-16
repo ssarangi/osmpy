@@ -229,10 +229,10 @@ def plot_bokeh(osm):
     # create a new plot
     p = plt.figure(
        tools="pan,box_zoom,reset,save",
-       y_axis_type="log", y_range=[0.001, 10**11], title="OSM map",
-       x_axis_label='sections', y_axis_label='particles'
+       y_axis_type="log", title="OSM map",
     )
 
+    plt.output_file("osm.html")
 
     for idx, nodeID in enumerate(osm.ways.keys()):
         wayTags = osm.ways[nodeID].tags
@@ -260,9 +260,9 @@ def plot_bokeh(osm):
             else:
                 thisRendering = renderingRules['default']
 
-            for nCnt, nID in enumerate(osm.ways[nodeID]['nd']):
-                y = float(osm.nodes[nID['ref']]['lat'])
-                x = float(osm.nodes[nID['ref']]['lon'])
+            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
+                y = float(osm.nodes[nID].lat)
+                x = float(osm.nodes[nID].lon)
 
                 if oldX is None:
                     pass
@@ -273,12 +273,133 @@ def plot_bokeh(osm):
                            color      = thisRendering['color'],
                            line_cap   = thisRendering['line_cap'])
 
+                oldX = x
+                oldY = y
+
+    print("Done bokeh")
     plt.show(p)
+
+def matplot(osm):
+    renderingRules = {
+        'primary': dict(
+                linestyle       = '-',
+                linewidth       = 6,
+                color           ='#ee82ee',
+                zorder          = -1,
+                ),
+        'primary_link': dict(
+                linestyle       = '-',
+                linewidth       = 6,
+                color           = '#da70d6',
+                zorder          = -1,
+                ),
+        'secondary': dict(
+                linestyle       = '-',
+                linewidth       = 6,
+                color           = '#d8bfd8',
+                zorder          = -2,
+                ),
+        'secondary_link': dict(
+                linestyle       = '-',
+                linewidth       = 6,
+                color           = '#d8bfd8',
+                zorder          = -2,
+                ),
+        'tertiary': dict(
+                linestyle       = '-',
+                linewidth       = 4,
+                color           = (0.0,0.0,0.7),
+                zorder          = -3,
+                ),
+        'tertiary_link': dict(
+                linestyle       = '-',
+                linewidth       = 4,
+                color           = (0.0,0.0,0.7),
+                zorder          = -3,
+                ),
+        'residential': dict(
+                linestyle       = '-',
+                linewidth       = 1,
+                color           = (0.1,0.1,0.1),
+                zorder          = -99,
+                ),
+        'unclassified': dict(
+                linestyle       = ':',
+                linewidth       = 1,
+                color           = (0.5,0.5,0.5),
+                zorder          = -1,
+                ),
+        'default': dict(
+                linestyle       = '-',
+                linewidth       = 3,
+                color           = 'b',
+                zorder          = -1,
+                ),
+        }
+
+    # get bounds from OSM data
+    minX = float(osm.bounds['minlon'])
+    maxX = float(osm.bounds['maxlon'])
+    minY = float(osm.bounds['minlat'])
+    maxY = float(osm.bounds['maxlat'])
+
+    import pylab as plt
+    fig = plt.figure()
+    ax = fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+
+    for idx, nodeID in enumerate(osm.ways.keys()):
+        wayTags = osm.ways[nodeID].tags
+        wayType = None
+        if 'highway' in wayTags.keys():
+            wayType = wayTags['highway']
+
+        if wayType in ['primary',
+                       'primary_link',
+                       'unclassified',
+                       'secondary',
+                       'secondary_link',
+                       'tertiary',
+                       'tertiary_link',
+                       'residential',
+                       'trunk',
+                       'trunk_link',
+                       'motorway',
+                       'motorway_link']:
+            oldX = None
+            oldY = None
+
+            if wayType in list(renderingRules.keys()):
+                thisRendering = renderingRules[wayType]
+            else:
+                thisRendering = renderingRules['default']
+
+            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
+                y = float(osm.nodes[nID].lat)
+                x = float(osm.nodes[nID].lon)
+
+                if oldX is None:
+                    pass
+                else:
+                    plt.plot([oldX,x],[oldY,y],
+                            marker          = '',
+                            linestyle       = thisRendering['linestyle'],
+                            linewidth       = thisRendering['linewidth'],
+                            color           = thisRendering['color'],
+                            solid_capstyle  = 'round',
+                            solid_joinstyle = 'round',
+                            zorder          = thisRendering['zorder'],
+                            )
+
+                oldX = x
+                oldY = y
+
+    plt.show()
 
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
     plot_bokeh(osm)
+    matplot(osm)
 
 if __name__ == "__main__":
     main()
