@@ -377,33 +377,33 @@ class MatplotLibMap:
             point = (float(np.take(xdata, ind)[0]), float(np.take(ydata, ind)[0]))
             node_id = self._node_map[point]
 
-        if self._node1 is None:
-            self._node1 = Node(node_id, point[0], point[1])
-            self._mouse_click1 = (event.mouseevent.xdata, event.mouseevent.ydata)
-            return self._node1
-        else:
-            # Do not allow clicking of node id's within 100 node distances
-            if abs(point[0] - self._node1.lon) < threshold and abs(point[1] - self._node1.lat) < threshold:
-                return None
+            if self._node1 is None:
+                self._node1 = Node(node_id, point[0], point[1])
+                self._mouse_click1 = (event.mouseevent.xdata, event.mouseevent.ydata)
+                return self._node1
+            else:
+                # Do not allow clicking of node id's within 100 node distances
+                if abs(point[0] - self._node1.lon) < threshold and abs(point[1] - self._node1.lat) < threshold:
+                    return None
 
-            self._node2 = Node(node_id, point[0], point[1])
-            self._mouse_click2 = (event.mouseevent.xdata, event.mouseevent.ydata)
-            print("Both points marked")
+                self._node2 = Node(node_id, point[0], point[1])
+                self._mouse_click2 = (event.mouseevent.xdata, event.mouseevent.ydata)
+                print("Both points marked")
 
-            # import simple_router
-            # path = simple_router.run_simple_router(sys.argv[1])
-            # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
+                # import simple_router
+                # path = simple_router.run_simple_router(sys.argv[1])
+                # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
 
-            import pylab as plt
-            plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
-            plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
-            plt.draw()
+                import pylab as plt
+                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+                plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
+                plt.draw()
 
-            # Now both the points have been marked. Now try to find a path.
-            path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
-            self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=True)
+                # Now both the points have been marked. Now try to find a path.
+                path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+                self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=True)
 
-            return self._node2
+                return self._node2
 
     def plot_path(self, path, rendering_style=None, animate=False):
         edges = zip(path, path[1:])
