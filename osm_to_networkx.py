@@ -154,8 +154,6 @@ def read_osm(filename_or_stream, only_roads=True):
         weights = [calcDistance(osm.nodes[edge[0]], osm.nodes[edge[1]]) for edge in zip(nds, nds1)]
 
         for i, edge in enumerate(zip(nds, nds1)):
-            if edge[0] == '1081079594' or edge[1] == '1081079594':
-                print(edge[0], edge[1], weights[i])
             G.add_edge(edge[0], edge[1], weight=weights[i])
 
         # G.add_path(w.nds, id=w.id, highway = w.tags['highway'], weight=weights)#{str(k): type(v) for k,v in w.tags.items()})
@@ -269,6 +267,8 @@ class MatplotLibMap:
     def __init__(self, graph):
         self._node1 = None
         self._node2 = None
+        self._mouse_click1 = None
+        self._mouse_click2 = None
         self._node_map = {}
         self._graph = graph
         self._osm = None
@@ -281,7 +281,7 @@ class MatplotLibMap:
     def node2(self):
         return self._node2
 
-    def render(self, osm):
+    def render(self, osm, plot_nodes=False):
         self._osm = osm
 
         # get bounds from OSM data
@@ -340,6 +340,9 @@ class MatplotLibMap:
                                 picker=2
                         )
 
+                        if plot_nodes == True:
+                            plt.plot(x, y,'ro', zorder=5)
+
                     oldX = x
                     oldY = y
 
@@ -356,11 +359,17 @@ class MatplotLibMap:
 
     def __onclick__(self, event):
         threshold = 0.001
+
+        if event.mouseevent.button == 3:
+            self._node1 = None
+            self._node2 = None
+            self._mouse_click1 = None
+            self._mouse_click2 = None
+
         if self._node1 is not None and self._node2 is not None:
             return None
 
         if isinstance(event.artist, Line2D):
-            print("Entered pick event")
             thisline = event.artist
             xdata = thisline.get_xdata()
             ydata = thisline.get_ydata()
@@ -370,6 +379,7 @@ class MatplotLibMap:
 
         if self._node1 is None:
             self._node1 = Node(node_id, point[0], point[1])
+            self._mouse_click1 = (event.mouseevent.xdata, event.mouseevent.ydata)
             return self._node1
         else:
             # Do not allow clicking of node id's within 100 node distances
@@ -377,25 +387,25 @@ class MatplotLibMap:
                 return None
 
             self._node2 = Node(node_id, point[0], point[1])
+            self._mouse_click2 = (event.mouseevent.xdata, event.mouseevent.ydata)
             print("Both points marked")
-            print(self.node1)
-            print(self.node2)
 
             # import simple_router
             # path = simple_router.run_simple_router(sys.argv[1])
             # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
 
+            import pylab as plt
+            plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+            plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
+            plt.draw()
+
             # Now both the points have been marked. Now try to find a path.
             path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
-            self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
-            import pylab as plt
-            plt.plot(self.node1.lon, self.node1.lat, 'ro')
-            plt.plot(self.node2.lon, self.node2.lat, 'ro')
-            plt.draw()
-            
+            self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=True)
+
             return self._node2
 
-    def plot_path(self, path, rendering_style=None):
+    def plot_path(self, path, rendering_style=None, animate=False):
         edges = zip(path, path[1:])
 
         if rendering_style is None:
@@ -404,13 +414,21 @@ class MatplotLibMap:
             thisRendering = rendering_style
         import pylab as plt
 
-        for edge in edges:
+        for i, edge in enumerate(edges):
             node_from = self._osm.nodes[edge[0]]
             node_to = self._osm.nodes[edge[1]]
             x_from = node_from.lon
             y_from = node_from.lat
             x_to = node_to.lon
             y_to = node_to.lat
+
+            if i == 0:
+                x_from = self._mouse_click1[0]
+                y_from = self._mouse_click1[1]
+
+            if i == len(path) - 2:
+                x_to = self._mouse_click2[0]
+                y_to = self._mouse_click2[1]
 
             plt.plot([x_from,x_to],[y_from,y_to],
                     marker          = '',
@@ -422,6 +440,8 @@ class MatplotLibMap:
                     zorder          = thisRendering['zorder'],
                     )
 
+            if animate:
+                plt.draw()
 
         plt.draw()
 
@@ -430,7 +450,7 @@ def main():
     print(osm.bounds)
     # plot_bokeh(osm)
     matplotmap = MatplotLibMap(graph)
-    matplotmap.render(osm)
+    matplotmap.render(osm, plot_nodes=True)
 
 
 if __name__ == "__main__":

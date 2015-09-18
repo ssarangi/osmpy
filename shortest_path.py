@@ -118,7 +118,7 @@ def dijkstra(graph, start, end, graph_edges = None, edge_weights = None):
         end = path[end]
 
     newpath.reverse()
-    print(newpath)
+    # print(newpath)
 
     return newpath
 

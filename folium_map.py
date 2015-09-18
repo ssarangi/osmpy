@@ -141,6 +141,9 @@ def read_osm(filename_or_stream, only_roads=True):
         if only_roads and 'highway' not in w.tags:
             continue
 
+        # for nd in w.nds:
+        #     print(w.tags['highway'])
+
         G.add_path(w.nds, id=w.id, highway = w.tags['highway'])#{str(k): type(v) for k,v in w.tags.items()})
 
         if 'oneway' not in w.tags and  w.tags['highway'] != 'motorway':
@@ -169,6 +172,11 @@ def plot_folium(osm, path, startId, endId):
 
     nodes = list(osm.nodes.values())
 
+    print(startId in osm.nodes)
+    print(endId in osm.nodes)
+
+    print(nodes[startId])
+
     map_osm = folium.Map(location=[centerX, centerY], zoom_start=13)
     map_osm.simple_marker([nodes[startId].lat, nodes[startId].lon])
     map_osm.simple_marker([nodes[endId].lat, nodes[endId].lon])
@@ -179,18 +187,17 @@ def plot_folium(osm, path, startId, endId):
     map_osm.create_map(path='folium.html')
 
 
-from simple_router import *
 def main():
-    startId = 65491414
-    endId = 3217632873
+    startId = '65588017'
+    endId = '65511840'
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    db = routingDb()
-    print(readDb(open(sys.argv[1],"r"),db))
-    db.cleanUp()
-    nodes = list(osm.nodes.values())
-    path = startRouting(db, str(startId), str(endId))
-    plot_folium(osm, path)
+    # db = routingDb()
+    # print(readDb(open(sys.argv[1],"r"),db))
+    # db.cleanUp()
+    # nodes = list(osm.nodes.values())
+    # path = startRouting(db, str(startId), str(endId))
+    plot_folium(osm, None, startId, endId)
 
 if __name__ == "__main__":
     main()
