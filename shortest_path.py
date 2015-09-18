@@ -91,7 +91,6 @@ def dijkstra(graph, start, end, graph_edges = None, edge_weights = None):
         node = pq.pop()
         visited.append(node)
         for neighbor in graph.neighbors(node):
-            # print("Exploring Neighbor: %s" % neighbor)
             if node not in cost:
                 cost[node] = float('inf')
 
@@ -103,15 +102,9 @@ def dijkstra(graph, start, end, graph_edges = None, edge_weights = None):
 
             new_edge_weight = cost[node] + edge_weight
 
-            if node == '1081079594' or neighbor == '1081079594':
-                print(node, neighbor, new_edge_weight)
-
             if cost[neighbor] > new_edge_weight:
                 cost[neighbor] = min(cost[neighbor], new_edge_weight)
                 path[neighbor] = node
-
-                if node == '1081079594' or neighbor == '1081079594':
-                    print(node, neighbor, cost[neighbor])
 
                 if neighbor not in visited:
                     pq.push(neighbor, priority = float(cost[neighbor]))

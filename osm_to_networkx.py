@@ -345,14 +345,14 @@ class MatplotLibMap:
 
         cid = fig.canvas.mpl_connect('pick_event', self.__onclick__)
 
-        path = shortest_path.dijkstra(self._graph, '1081079917', '65501510')
-        self.plot_path(path, MatplotLibMap.renderingRules['calculated_path'])
+        # path = shortest_path.dijkstra(self._graph, '1081079917', '65501510')
+        # self.plot_path(path, MatplotLibMap.renderingRules['calculated_path'])
 
         # import simple_router
         # path = simple_router.run_simple_router(sys.argv[1])
         # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
-
         plt.show()
+
 
     def __onclick__(self, event):
         threshold = 0.001
@@ -381,9 +381,18 @@ class MatplotLibMap:
             print(self.node1)
             print(self.node2)
 
-            # Now both the points have been marked. Now try to find a path.
-            shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+            # import simple_router
+            # path = simple_router.run_simple_router(sys.argv[1])
+            # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
 
+            # Now both the points have been marked. Now try to find a path.
+            path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+            self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
+            import pylab as plt
+            plt.plot(self.node1.lon, self.node1.lat, 'ro')
+            plt.plot(self.node2.lon, self.node2.lat, 'ro')
+            plt.draw()
+            
             return self._node2
 
     def plot_path(self, path, rendering_style=None):
@@ -411,7 +420,10 @@ class MatplotLibMap:
                     solid_capstyle  = 'round',
                     solid_joinstyle = 'round',
                     zorder          = thisRendering['zorder'],
-                     )
+                    )
+
+
+        plt.draw()
 
 def main():
     graph, osm = read_osm(sys.argv[1])
