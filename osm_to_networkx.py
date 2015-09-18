@@ -12,6 +12,10 @@ import copy
 import networkx as nx
 import sys
 import bokeh.plotting as plt
+from matplotlib.lines import Line2D
+import numpy as np
+from math import *
+import shortest_path
 
 class Node:
     def __init__(self, id, lon, lat):
@@ -19,6 +23,11 @@ class Node:
         self.lon = lon
         self.lat = lat
         self.tags = {}
+
+    def __str__(self):
+        return str(self.id) # + " --> " + '(' + str(self.lat) + ',' + str(self.lon) + ')'
+
+    __repr__ = __str__
 
 class Way:
     def __init__(self, id, osm):
@@ -133,202 +142,121 @@ class OSM:
 
 def read_osm(filename_or_stream, only_roads=True):
     osm = OSM(filename_or_stream)
-    G = nx.DiGraph()
+    G = nx.Graph()
 
     for w in osm.ways.values():
         if only_roads and 'highway' not in w.tags:
             continue
 
-        G.add_path(w.nds, id=w.id, highway = w.tags['highway'])#{str(k): type(v) for k,v in w.tags.items()})
+        actual_nodes = w.nds
+        nds = actual_nodes
+        nds1 = actual_nodes[1:]
+        weights = [calcDistance(osm.nodes[edge[0]], osm.nodes[edge[1]]) for edge in zip(nds, nds1)]
 
-        if 'oneway' not in w.tags and  w.tags['highway'] != 'motorway':
-            G.add_path(reversed(w.nds), id=w.id, highway = w.tags['highway'])
+        for i, edge in enumerate(zip(nds, nds1)):
+            if edge[0] == '1081079594' or edge[1] == '1081079594':
+                print(edge[0], edge[1], weights[i])
+            G.add_edge(edge[0], edge[1], weight=weights[i])
 
-        elif w.tags['oneway'] != 'yes' and w.tags['oneway'] != '-1' and  w.tags['highway'] != 'motorway':
-            G.add_path(reversed(w.nds), id=w.id, highway = w.tags['highway'])
+        # G.add_path(w.nds, id=w.id, highway = w.tags['highway'], weight=weights)#{str(k): type(v) for k,v in w.tags.items()})
+        #
+        # if 'oneway' not in w.tags and  w.tags['highway'] != 'motorway':
+        #     G.add_path(reversed(w.nds), id=w.id, highway = w.tags['highway'], weights=reversed(weights))
+        #
+        # elif w.tags['oneway'] != 'yes' and w.tags['oneway'] != '-1' and  w.tags['highway'] != 'motorway':
+        #     G.add_path(reversed(w.nds), id=w.id, highway = w.tags['highway'], weights=reversed(weights))
 
-
-    for n_id in G.nodes_iter():
-        n = osm.nodes[n_id]
-        G.node[n_id] = dict(lon=n.lon,lat=n.lat)
+    # for n_id in G.nodes_iter():
+    #     n = osm.nodes[n_id]
+    #     G.node[n_id] = dict(lon=n.lon,lat=n.lat)
     return G, osm
 
-def plot_bokeh(osm):
-    renderingRules = {
-        'primary': dict(
-                line_dash       = 'solid',
-                line_width      = 6,
-                line_cap        = 'round',
-                color           ='#ee82ee',
-                zorder          = -1,
-                ),
-        'primary_link': dict(
-                line_dash       = 'solid',
-                line_width       = 6,
-                line_cap        = 'round',
-                color           = '#da70d6',
-                zorder          = -1,
-                ),
-        'secondary': dict(
-                line_dash       = 'solid',
-                line_width       = 6,
-                line_cap        = 'round',
-                color           = '#d8bfd8',
-                zorder          = -2,
-                ),
-        'secondary_link': dict(
-                line_dash       = 'solid',
-                line_width       = 6,
-                line_cap        = 'round',
-                color           = '#d8bfd8',
-                zorder          = -2,
-                ),
-        'tertiary': dict(
-                line_dash       = 'solid',
-                line_width       = 4,
-                line_cap        = 'round',
-                color           = (0.0,0.0,0.7),
-                zorder          = -3,
-                ),
-        'tertiary_link': dict(
-                line_dash       = 'solid',
-                line_width       = 4,
-                line_cap        = 'round',
-                color           = (0.0,0.0,0.7),
-                zorder          = -3,
-                ),
-        'residential': dict(
-                line_dash       = 'solid',
-                line_width       = 1,
-                line_cap        = 'round',
-                color           = (0.1,0.1,0.1),
-                zorder          = -99,
-                ),
-        'unclassified': dict(
-                line_dash       = 'solid',
-                line_width       = 1,
-                line_cap        = 'round',
-                color           = (0.5,0.5,0.5),
-                zorder          = -1,
-                ),
-        'default': dict(
-                line_dash       = 'solid',
-                line_width       = 3,
-                line_cap        = 'round',
-                color           = 'b',
-                zorder          = -1,
-                ),
-        }
+def calcDistance(node,otherNode):
+    lat1 = float(node.lat)
+    lon1 = float(node.lon)
+    lat2 = float(otherNode.lat)
+    lon2 = float(otherNode.lon)
 
-    # get bounds from OSM data
-    minX = float(osm.bounds['minlon'])
-    maxX = float(osm.bounds['maxlon'])
-    minY = float(osm.bounds['minlat'])
-    maxY = float(osm.bounds['maxlat'])
+    #Code coppied form: http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = list(map(radians, [lon1, lat1, lon2, lat2]))
 
-    # create a new plot
-    p = plt.figure(
-       tools="pan,box_zoom,reset,save",
-       y_axis_type="log", title="OSM map",
-    )
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
 
-    plt.output_file("osm.html")
+    # 6367 km is the radius of the Earth
+    km = 6367 * c
+    return km
 
-    for idx, nodeID in enumerate(osm.ways.keys()):
-        wayTags = osm.ways[nodeID].tags
-        wayType = None
-        if 'highway' in wayTags.keys():
-            wayType = wayTags['highway']
-
-        if wayType in ['primary',
-                       'primary_link',
-                       'unclassified',
-                       'secondary',
-                       'secondary_link',
-                       'tertiary',
-                       'tertiary_link',
-                       'residential',
-                       'trunk',
-                       'trunk_link',
-                       'motorway',
-                       'motorway_link']:
-            oldX = None
-            oldY = None
-
-            if wayType in list(renderingRules.keys()):
-                thisRendering = renderingRules[wayType]
-            else:
-                thisRendering = renderingRules['default']
-
-            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
-                y = float(osm.nodes[nID].lat)
-                x = float(osm.nodes[nID].lon)
-
-                if oldX is None:
-                    pass
-                else:
-                    p.line([oldX, x], [oldY, y],
-                           line_dash  = thisRendering['line_dash'],
-                           line_width = thisRendering['line_width'],
-                           color      = thisRendering['color'],
-                           line_cap   = thisRendering['line_cap'])
-
-                oldX = x
-                oldY = y
-
-    print("Done bokeh")
-    plt.show(p)
-
-def matplot(osm):
+class MatplotLibMap:
     renderingRules = {
         'primary': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           ='#ee82ee',
                 zorder          = -1,
-                ),
+        ),
         'primary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = '#da70d6',
                 zorder          = -1,
-                ),
+        ),
         'secondary': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = '#d8bfd8',
                 zorder          = -2,
-                ),
+        ),
         'secondary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = '#d8bfd8',
                 zorder          = -2,
-                ),
+        ),
         'tertiary': dict(
                 linestyle       = '-',
                 linewidth       = 4,
                 color           = (0.0,0.0,0.7),
                 zorder          = -3,
-                ),
+        ),
         'tertiary_link': dict(
                 linestyle       = '-',
                 linewidth       = 4,
                 color           = (0.0,0.0,0.7),
                 zorder          = -3,
-                ),
+        ),
         'residential': dict(
                 linestyle       = '-',
                 linewidth       = 1,
                 color           = (0.1,0.1,0.1),
                 zorder          = -99,
-                ),
+        ),
         'unclassified': dict(
                 linestyle       = ':',
                 linewidth       = 1,
                 color           = (0.5,0.5,0.5),
                 zorder          = -1,
-                ),
+        ),
+        'calculated_path': dict(
+                linestyle       = '-',
+                linewidth       = 4,
+                color           = (1.0,0.0,0.0),
+                zorder          = 1,
+        ),
+        'correct_path': dict(
+                linestyle       = '-',
+                linewidth       = 6,
+                color           = (0.6,0.8,0.0),
+                zorder          = 2,
+        ),
         'default': dict(
                 linestyle       = '-',
                 linewidth       = 3,
@@ -337,69 +265,161 @@ def matplot(osm):
                 ),
         }
 
-    # get bounds from OSM data
-    minX = float(osm.bounds['minlon'])
-    maxX = float(osm.bounds['maxlon'])
-    minY = float(osm.bounds['minlat'])
-    maxY = float(osm.bounds['maxlat'])
 
-    import pylab as plt
-    fig = plt.figure()
-    ax = fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+    def __init__(self, graph):
+        self._node1 = None
+        self._node2 = None
+        self._node_map = {}
+        self._graph = graph
+        self._osm = None
 
-    for idx, nodeID in enumerate(osm.ways.keys()):
-        wayTags = osm.ways[nodeID].tags
-        wayType = None
-        if 'highway' in wayTags.keys():
-            wayType = wayTags['highway']
+    @property
+    def node1(self):
+        return self._node1
 
-        if wayType in ['primary',
-                       'primary_link',
-                       'unclassified',
-                       'secondary',
-                       'secondary_link',
-                       'tertiary',
-                       'tertiary_link',
-                       'residential',
-                       'trunk',
-                       'trunk_link',
-                       'motorway',
-                       'motorway_link']:
-            oldX = None
-            oldY = None
+    @property
+    def node2(self):
+        return self._node2
 
-            if wayType in list(renderingRules.keys()):
-                thisRendering = renderingRules[wayType]
-            else:
-                thisRendering = renderingRules['default']
+    def render(self, osm):
+        self._osm = osm
 
-            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
-                y = float(osm.nodes[nID].lat)
-                x = float(osm.nodes[nID].lon)
+        # get bounds from OSM data
+        minX = float(osm.bounds['minlon'])
+        maxX = float(osm.bounds['maxlon'])
+        minY = float(osm.bounds['minlat'])
+        maxY = float(osm.bounds['maxlat'])
 
-                if oldX is None:
-                    pass
+        import pylab as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+
+        for idx, nodeID in enumerate(osm.ways.keys()):
+            wayTags = osm.ways[nodeID].tags
+            wayType = None
+            if 'highway' in wayTags.keys():
+                wayType = wayTags['highway']
+
+            if wayType in ['primary',
+                           'primary_link',
+                           'unclassified',
+                           'secondary',
+                           'secondary_link',
+                           'tertiary',
+                           'tertiary_link',
+                           'residential',
+                           'trunk',
+                           'trunk_link',
+                           'motorway',
+                           'motorway_link']:
+                oldX = None
+                oldY = None
+
+                if wayType in list(MatplotLibMap.renderingRules.keys()):
+                    thisRendering = MatplotLibMap.renderingRules[wayType]
                 else:
-                    plt.plot([oldX,x],[oldY,y],
-                            marker          = '',
-                            linestyle       = thisRendering['linestyle'],
-                            linewidth       = thisRendering['linewidth'],
-                            color           = thisRendering['color'],
-                            solid_capstyle  = 'round',
-                            solid_joinstyle = 'round',
-                            zorder          = thisRendering['zorder'],
-                            )
+                    thisRendering = MatplotLibMap.renderingRules['default']
 
-                oldX = x
-                oldY = y
+                for nCnt, nID in enumerate(osm.ways[nodeID].nds):
+                    y = float(osm.nodes[nID].lat)
+                    x = float(osm.nodes[nID].lon)
 
-    plt.show()
+                    self._node_map[(x, y)] = nID
+
+                    if oldX is None:
+                        pass
+                    else:
+                        plt.plot([oldX,x],[oldY,y],
+                                marker          = '',
+                                linestyle       = thisRendering['linestyle'],
+                                linewidth       = thisRendering['linewidth'],
+                                color           = thisRendering['color'],
+                                solid_capstyle  = 'round',
+                                solid_joinstyle = 'round',
+                                zorder          = thisRendering['zorder'],
+                                picker=2
+                        )
+
+                    oldX = x
+                    oldY = y
+
+        cid = fig.canvas.mpl_connect('pick_event', self.__onclick__)
+
+        path = shortest_path.dijkstra(self._graph, '1081079917', '65501510')
+        self.plot_path(path, MatplotLibMap.renderingRules['calculated_path'])
+
+        # import simple_router
+        # path = simple_router.run_simple_router(sys.argv[1])
+        # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
+
+        plt.show()
+
+    def __onclick__(self, event):
+        threshold = 0.001
+        if self._node1 is not None and self._node2 is not None:
+            return None
+
+        if isinstance(event.artist, Line2D):
+            print("Entered pick event")
+            thisline = event.artist
+            xdata = thisline.get_xdata()
+            ydata = thisline.get_ydata()
+            ind = event.ind
+            point = (float(np.take(xdata, ind)[0]), float(np.take(ydata, ind)[0]))
+            node_id = self._node_map[point]
+
+        if self._node1 is None:
+            self._node1 = Node(node_id, point[0], point[1])
+            return self._node1
+        else:
+            # Do not allow clicking of node id's within 100 node distances
+            if abs(point[0] - self._node1.lon) < threshold and abs(point[1] - self._node1.lat) < threshold:
+                return None
+
+            self._node2 = Node(node_id, point[0], point[1])
+            print("Both points marked")
+            print(self.node1)
+            print(self.node2)
+
+            # Now both the points have been marked. Now try to find a path.
+            shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+
+            return self._node2
+
+    def plot_path(self, path, rendering_style=None):
+        edges = zip(path, path[1:])
+
+        if rendering_style is None:
+            thisRendering = MatplotLibMap.renderingRules['calculated_path']
+        else:
+            thisRendering = rendering_style
+        import pylab as plt
+
+        for edge in edges:
+            node_from = self._osm.nodes[edge[0]]
+            node_to = self._osm.nodes[edge[1]]
+            x_from = node_from.lon
+            y_from = node_from.lat
+            x_to = node_to.lon
+            y_to = node_to.lat
+
+            plt.plot([x_from,x_to],[y_from,y_to],
+                    marker          = '',
+                    linestyle       = thisRendering['linestyle'],
+                    linewidth       = thisRendering['linewidth'],
+                    color           = thisRendering['color'],
+                    solid_capstyle  = 'round',
+                    solid_joinstyle = 'round',
+                    zorder          = thisRendering['zorder'],
+                     )
 
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    plot_bokeh(osm)
-    matplot(osm)
+    # plot_bokeh(osm)
+    matplotmap = MatplotLibMap(graph)
+    matplotmap.render(osm)
+
 
 if __name__ == "__main__":
     main()
