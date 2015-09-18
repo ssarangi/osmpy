@@ -11,11 +11,12 @@ import xml.sax
 import copy
 import networkx as nx
 import sys
-import bokeh.plotting as plt
 from matplotlib.lines import Line2D
+from matplotlib.widgets import Cursor, Button, CheckButtons
 import numpy as np
 from math import *
 import shortest_path
+import pylab as plt
 
 class Node:
     def __init__(self, id, lon, lat):
@@ -65,7 +66,6 @@ class Way:
             i += 1
 
         return ret
-
 
 class OSM:
     def __init__(self, filename_or_stream):
@@ -151,7 +151,7 @@ def read_osm(filename_or_stream, only_roads=True):
         actual_nodes = w.nds
         nds = actual_nodes
         nds1 = actual_nodes[1:]
-        weights = [calcDistance(osm.nodes[edge[0]], osm.nodes[edge[1]]) for edge in zip(nds, nds1)]
+        weights = [shortest_path.calc_distance(osm.nodes[edge[0]], osm.nodes[edge[1]]) for edge in zip(nds, nds1)]
 
         for i, edge in enumerate(zip(nds, nds1)):
             G.add_edge(edge[0], edge[1], weight=weights[i])
@@ -168,30 +168,6 @@ def read_osm(filename_or_stream, only_roads=True):
     #     n = osm.nodes[n_id]
     #     G.node[n_id] = dict(lon=n.lon,lat=n.lat)
     return G, osm
-
-def calcDistance(node,otherNode):
-    lat1 = float(node.lat)
-    lon1 = float(node.lon)
-    lat2 = float(otherNode.lat)
-    lon2 = float(otherNode.lon)
-
-    #Code coppied form: http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
-    """
-    Calculate the great circle distance between two points
-    on the earth (specified in decimal degrees)
-    """
-    # convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = list(map(radians, [lon1, lat1, lon2, lat2]))
-
-    # haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
-
-    # 6367 km is the radius of the Earth
-    km = 6367 * c
-    return km
 
 class MatplotLibMap:
     renderingRules = {
@@ -272,6 +248,11 @@ class MatplotLibMap:
         self._node_map = {}
         self._graph = graph
         self._osm = None
+        self._fig = None
+        self._render_axes = None
+
+        # Matplotlib data members
+        self._node_plots = []
 
     @property
     def node1(self):
@@ -281,7 +262,7 @@ class MatplotLibMap:
     def node2(self):
         return self._node2
 
-    def render(self, osm, plot_nodes=False):
+    def render(self, osm, plot_nodes=False, new_plot = True):
         self._osm = osm
 
         # get bounds from OSM data
@@ -290,9 +271,23 @@ class MatplotLibMap:
         minY = float(osm.bounds['minlat'])
         maxY = float(osm.bounds['maxlat'])
 
-        import pylab as plt
-        fig = plt.figure()
-        ax = fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+        if new_plot:
+            self._fig = plt.figure()
+            self._render_axes = self._fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+            self._render_axes.xaxis.set_visible(False)
+            self._render_axes.yaxis.set_visible(False)
+            plt.subplots_adjust(bottom=0.2)
+            axcheckbox = plt.axes([0.13, 0.05, 0.25, 0.075])
+            axnext = plt.axes([0.81, 0.05, 0.1, 0.075])
+            clear_button = Button(axnext, 'Clear')
+            clear_button.on_clicked(self.__clear_button_clicked__)
+            animate_button = CheckButtons(axcheckbox, ('Show Nodes', 'Animate'), (False, False))
+            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+            # check_buttons = CheckButtons(ax, ('Show Nodes', 'Animate'), (False, False))
+        else:
+            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+            plt.cla()
+            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
 
         for idx, nodeID in enumerate(osm.ways.keys()):
             wayTags = osm.ways[nodeID].tags
@@ -346,25 +341,22 @@ class MatplotLibMap:
                     oldX = x
                     oldY = y
 
-        cid = fig.canvas.mpl_connect('pick_event', self.__onclick__)
+        if new_plot:
+            # but_ax=plt.subplot2grid((8,4),(7,0),colspan=1)
+            # reset_button=Button(but_ax,'Reset')
+            self._fig.canvas.mpl_connect('pick_event', self.__onclick__)
+            plt.show()
 
-        # path = shortest_path.dijkstra(self._graph, '1081079917', '65501510')
-        # self.plot_path(path, MatplotLibMap.renderingRules['calculated_path'])
-
-        # import simple_router
-        # path = simple_router.run_simple_router(sys.argv[1])
-        # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
-        plt.show()
-
+    def __clear_button_clicked__(self, event):
+        print("Right Click")
+        self._node1 = None
+        self._node2 = None
+        self._mouse_click1 = None
+        self._mouse_click2 = None
+        self.render(self._osm, plot_nodes=False, new_plot=False)
 
     def __onclick__(self, event):
         threshold = 0.001
-
-        if event.mouseevent.button == 3:
-            self._node1 = None
-            self._node2 = None
-            self._mouse_click1 = None
-            self._mouse_click2 = None
 
         if self._node1 is not None and self._node2 is not None:
             return None
@@ -394,13 +386,13 @@ class MatplotLibMap:
                 # path = simple_router.run_simple_router(sys.argv[1])
                 # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
 
-                import pylab as plt
                 plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
                 plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
                 plt.draw()
 
                 # Now both the points have been marked. Now try to find a path.
                 path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+                # path = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
                 self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=True)
 
                 return self._node2
@@ -412,7 +404,6 @@ class MatplotLibMap:
             thisRendering = MatplotLibMap.renderingRules['calculated_path']
         else:
             thisRendering = rendering_style
-        import pylab as plt
 
         for i, edge in enumerate(edges):
             node_from = self._osm.nodes[edge[0]]
@@ -448,9 +439,8 @@ class MatplotLibMap:
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    # plot_bokeh(osm)
     matplotmap = MatplotLibMap(graph)
-    matplotmap.render(osm, plot_nodes=True)
+    matplotmap.render(osm, plot_nodes=False)
 
 
 if __name__ == "__main__":

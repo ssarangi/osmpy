@@ -27,6 +27,30 @@ class PriorityQueue(object):
         return len(self.__heapq) == 0
 
 
+def calc_distance(node,otherNode):
+    lat1 = float(node.lat)
+    lon1 = float(node.lon)
+    lat2 = float(otherNode.lat)
+    lon2 = float(otherNode.lon)
+
+    #Code coppied form: http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = list(map(radians, [lon1, lat1, lon2, lat2]))
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+
+    # 6367 km is the radius of the Earth
+    km = 6367 * c
+    return km
+
 def draw_graph(graph_edges):
 
     # create networkx graph
@@ -79,84 +103,66 @@ def render_graph(G, graph_edges, edge_weights, labels=None, graph_layout='shell'
     plt.show()
     return G
 
-def dijkstra(graph, start, end, graph_edges = None, edge_weights = None):
-    cost = {}
-    cost[start] = 0
-    path = {}
-    visited = []
+def reconstruct_path(came_from, start, end):
+    current = end
+    path = [current]
+    while current != start:
+        current = came_from[current]
+        path.append(current)
+    path.reverse()
+    return path
 
+def dijkstra(graph, start, end):
     pq = PriorityQueue()
     pq.push(start, priority=0)
+    came_from = {}
+    cost_so_far = {}
+    cost_so_far[start] = 0
+    came_from[start] = None
+
     while not pq.empty():
-        node = pq.pop()
-        visited.append(node)
-        for neighbor in graph.neighbors(node):
-            if node not in cost:
-                cost[node] = float('inf')
+        current = pq.pop()
 
-            if neighbor not in cost:
-                cost[neighbor] = float('inf')
-
-            edge_weight = max(float(graph.get_edge_data(node, neighbor)['weight']),
-                              float(graph.get_edge_data(neighbor, node)['weight']))
-
-            new_edge_weight = cost[node] + edge_weight
-
-            if cost[neighbor] > new_edge_weight:
-                cost[neighbor] = min(cost[neighbor], new_edge_weight)
-                path[neighbor] = node
-
-                if neighbor not in visited:
-                    pq.push(neighbor, priority = float(cost[neighbor]))
-
-    newpath = [end]
-    while True:
-        if end == start:
+        if current == end:
             break
 
-        newpath.append(path[end])
-        end = path[end]
+        for neighbor in graph.neighbors(current):
+            new_cost = cost_so_far[current] + float(graph.get_edge_data(current, neighbor)['weight'])
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+                pq.push(neighbor, priority = new_cost)
+                came_from[neighbor] = current
 
-    newpath.reverse()
-    # print(newpath)
-
-    return newpath
-
-
-def calcDistance(node, otherNode):
-    lat1 = float(node.lat)
-    lon1 = float(node.lon)
-    lat2 = float(otherNode.lat)
-    lon2 = float(otherNode.lon)
-
-    # Code coppied form: http://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points
-    """
-    Calculate the great circle distance between two points
-    on the earth (specified in decimal degrees)
-    """
-    # convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = list(map(radians, [lon1, lat1, lon2, lat2]))
-
-    # haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    c = 2 * asin(sqrt(a))
-
-    # 6367 km is the radius of the Earth
-    km = 6367 * c
-    return km
+    path = reconstruct_path(came_from, start, end)
+    return path
 
 
-def findTopNode(knownNodes):
-    topNode = knownNodes[0]
-    for i in knownNodes:
-        if (topNode.getScore() > i.getScore()):
-            print("comparing: \n\t" + str(topNode.id) + " Score: " + str(
-                topNode.getScore()) + " and: \n\t" + i.id + " Score: " + str(i.getScore()))
-            topNode = i
-    print(topNode.id + " has the best Score!")
-    return topNode
+def astar(graph, start, end, osm):
+    pq = PriorityQueue()
+    pq.push(start, priority=0)
+
+    came_from = {}
+    cost_so_far = {}
+    came_from[start] = None
+    cost_so_far[start] = 0
+
+    while not pq.empty():
+        current = pq.pop()
+
+        if current == end:
+            break
+
+        for next in graph.neighbors(current):
+            new_cost = cost_so_far[current] + float(graph.get_edge_data(current, next)['weight'])
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next] = new_cost
+                priority = new_cost + calc_distance(osm.nodes[end], osm.nodes[next])
+                pq.push(next, priority = priority)
+                came_from[next] = current
+
+
+    path = reconstruct_path(came_from, start, end)
+    return path
 
 def main():
     graph_edges = [(0, 1), (1, 5), (1, 7), (4, 5), (4, 8), (1, 6), (3, 7), (5, 9),
@@ -167,7 +173,7 @@ def main():
 
     # if edge labels is not specified, numeric labels (0, 1, 2...) will be used
     graph, edge_weights = draw_graph(graph_edges)
-    dijkstra(graph, 0, 2, graph_edges, edge_weights)
+    dijkstra(graph, 0, 2)
     # AStar(graph, 0, 2)
 
 if __name__ == "__main__":
