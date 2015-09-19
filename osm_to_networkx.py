@@ -443,9 +443,7 @@ class MatplotLibMap:
             if animate:
                 plt.draw()
 
-        Canvas(np.array(path_coords).astype(np.float32))
         plt.draw()
-        app.run()
 
 def convert_to_pixel_coords(lat, lon):
     map_width = 400
@@ -458,6 +456,33 @@ def convert_to_pixel_coords(lat, lon):
 
     y = 180.0/math.pi*math.log(math.tan(math.pi/4.0 + lat *(math.pi/180.0)/2.0))
     return x, y
+
+
+class MapInfo:
+    def __init__(self):
+        self.map_shiftX = 0
+        self.map_shiftY = 0
+
+
+    def convert_lat_to_y(self, lat):
+        y = 0
+        w = 2000
+        SCALE = 9000
+        lat_rad = math.radians(lat)
+        y = (w / (2 * math.pi) * math.log(math.tan(math.pi / 4.0 + lat_rad / 2.0)) * SCALE)
+        y += self.map_shiftY
+        return y
+
+    def convert_lon_to_x(self, lon):
+        x = 0
+        w = 2000
+        SCALE = 9000
+        lon_rad = math.radians(lon)
+
+        x = (w / (2.0 * math.pi)) * (lon_rad) * SCALE
+        x -= self.map_shiftX
+
+        return x
 
 def get_points_from_node_ids(osm, path):
     edges = zip(path, path[1:])
