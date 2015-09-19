@@ -14,9 +14,12 @@ import sys
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Cursor, Button, CheckButtons
 import numpy as np
-from math import *
+import math
 import shortest_path
 import pylab as plt
+# import vispy.mpl_plot as plt
+from vispy_renderer import *
+from vispy import app
 
 class Node:
     def __init__(self, id, lon, lat):
@@ -335,7 +338,7 @@ class MatplotLibMap:
                                 picker=2
                         )
 
-                        if plot_nodes == True:
+                        if plot_nodes == True and (nCnt == 0 or nCnt == len(osm.ways[nodeID].nds) - 1):
                             plt.plot(x, y,'ro', zorder=5)
 
                     oldX = x
@@ -393,12 +396,14 @@ class MatplotLibMap:
                 # Now both the points have been marked. Now try to find a path.
                 path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
                 # path = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
-                self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=True)
+                self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=False)
 
                 return self._node2
 
     def plot_path(self, path, rendering_style=None, animate=False):
         edges = zip(path, path[1:])
+
+        path_coords = []
 
         if rendering_style is None:
             thisRendering = MatplotLibMap.renderingRules['calculated_path']
@@ -417,9 +422,13 @@ class MatplotLibMap:
                 x_from = self._mouse_click1[0]
                 y_from = self._mouse_click1[1]
 
+            path_coords.append([x_from, y_from])
+
             if i == len(path) - 2:
                 x_to = self._mouse_click2[0]
                 y_to = self._mouse_click2[1]
+
+                path_coords.append([x_to, y_to])
 
             plt.plot([x_from,x_to],[y_from,y_to],
                     marker          = '',
@@ -434,14 +443,53 @@ class MatplotLibMap:
             if animate:
                 plt.draw()
 
+        Canvas(np.array(path_coords).astype(np.float32))
         plt.draw()
+        app.run()
+
+def convert_to_pixel_coords(lat, lon):
+    map_width = 400
+    map_height = 400
+
+    x = (lon + 180.0) * (map_width / 360.0)
+    lat_rad = abs(lat * math.pi / 180.0)
+
+    merc_n = math.log(math.tan((math.pi / 4.0) + (lat_rad / 2.0)))
+
+    y = 180.0/math.pi*math.log(math.tan(math.pi/4.0 + lat *(math.pi/180.0)/2.0))
+    return x, y
+
+def get_points_from_node_ids(osm, path):
+    edges = zip(path, path[1:])
+
+    path_coords = []
+
+    for i, edge in enumerate(edges):
+        node_from = osm.nodes[edge[0]]
+        node_to = osm.nodes[edge[1]]
+        x_from = node_from.lon
+        y_from = node_from.lat
+        x_to = node_to.lon
+        y_to = node_to.lat
+
+        x_pixel, y_pixel = convert_to_pixel_coords(y_from, x_from)
+        path_coords.append([x_pixel, y_pixel, 0.1])
+
+        if i == len(path) - 2:
+            x_pixel, y_pixel = convert_to_pixel_coords(y_to, x_to)
+            path_coords.append([x_pixel, y_pixel, 0.1])
+
+    return np.array(path_coords).astype(np.float32)
 
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    matplotmap = MatplotLibMap(graph)
-    matplotmap.render(osm, plot_nodes=False)
-
+    # matplotmap = MatplotLibMap(graph)
+    # matplotmap.render(osm, plot_nodes=False)
+    path = shortest_path.dijkstra(graph, '1081079917', '65501510')
+    points = get_points_from_node_ids(osm, path)
+    c = Canvas(points)
+    app.run()
 
 if __name__ == "__main__":
     main()
