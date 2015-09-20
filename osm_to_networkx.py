@@ -257,6 +257,9 @@ class MatplotLibMap:
         # Matplotlib data members
         self._node_plots = []
 
+        #list of lats and longs
+        self.l_coordinates = []
+
     @property
     def node1(self):
         return self._node1
@@ -264,6 +267,10 @@ class MatplotLibMap:
     @property
     def node2(self):
         return self._node2
+
+    @property
+    def coordinates(self):
+        return self.l_coordinates
 
     def render(self, osm, plot_nodes=False, new_plot = True):
         self._osm = osm
@@ -298,7 +305,8 @@ class MatplotLibMap:
             if 'highway' in wayTags.keys():
                 wayType = wayTags['highway']
 
-            if wayType in ['primary',
+            if wayType in [
+                           'primary',
                            'primary_link',
                            'unclassified',
                            'secondary',
@@ -309,7 +317,8 @@ class MatplotLibMap:
                            'trunk',
                            'trunk_link',
                            'motorway',
-                           'motorway_link']:
+                           'motorway_link'
+                            ]:
                 oldX = None
                 oldY = None
 
@@ -343,6 +352,8 @@ class MatplotLibMap:
 
                     oldX = x
                     oldY = y
+
+                    self.l_coordinates.append([x,y])
 
         if new_plot:
             # but_ax=plt.subplot2grid((8,4),(7,0),colspan=1)
@@ -509,11 +520,12 @@ def get_points_from_node_ids(osm, path):
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    # matplotmap = MatplotLibMap(graph)
-    # matplotmap.render(osm, plot_nodes=False)
-    path = shortest_path.dijkstra(graph, '1081079917', '65501510')
-    points = get_points_from_node_ids(osm, path)
-    c = Canvas(points)
+    matplotmap = MatplotLibMap(graph)
+    matplotmap.render(osm, plot_nodes=False)
+    # print matplotmap.coordinates
+    # path = shortest_path.dijkstra(graph, '1081079917', '65501510')
+    # points = get_points_from_node_ids(osm, path)
+    c = Canvas(matplotmap.coordinates)
     app.run()
 
 if __name__ == "__main__":
