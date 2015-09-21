@@ -18,8 +18,8 @@ import math
 import shortest_path
 import pylab as plt
 # import vispy.mpl_plot as plt
-from vispy_renderer import *
-from vispy import app
+# from vispy_renderer import *
+# from vispy import app
 
 class Node:
     def __init__(self, id, lon, lat):
@@ -256,6 +256,8 @@ class MatplotLibMap:
         # Matplotlib data members
         self._node_plots = []
         self._osm = osm
+        #list of lats and longs
+        self.l_coordinates = []
 
         self.setup_figure()
 
@@ -266,6 +268,11 @@ class MatplotLibMap:
     @property
     def node2(self):
         return self._node2
+
+    @property
+    def coordinates(self):
+        return self.l_coordinates
+
 
     def setup_figure(self):
         # get bounds from OSM data
@@ -323,7 +330,8 @@ class MatplotLibMap:
             if 'highway' in wayTags.keys():
                 wayType = wayTags['highway']
 
-            if wayType in ['primary',
+            if wayType in [
+                           'primary',
                            'primary_link',
                            'unclassified',
                            'secondary',
@@ -334,7 +342,8 @@ class MatplotLibMap:
                            'trunk',
                            'trunk_link',
                            'motorway',
-                           'motorway_link']:
+                           'motorway_link'
+                            ]:
                 oldX = None
                 oldY = None
 
@@ -371,6 +380,7 @@ class MatplotLibMap:
 
         self._fig.canvas.mpl_connect('pick_event', self.__onclick__)
         plt.draw()
+        self.l_coordinates.append([x,y])
 
     def __clear_button_clicked__(self, event):
         print("Right Click")
