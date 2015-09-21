@@ -336,6 +336,7 @@ class MatplotLibMap:
         for rendering_axes in self._main_rendering_axes:
             self.render(rendering_axes)
 
+        self._fig.tight_layout()
         plt.show()
 
     def _get_axes(self, algo, graph_type):
