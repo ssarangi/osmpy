@@ -41,7 +41,7 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def __init__(self, vbos, bbox):
-        app.Canvas.__init__(self, keys='interactive', fullscreen=True)
+        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(1680, 1050))
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
 
         self.vbos = []
