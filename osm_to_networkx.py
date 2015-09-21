@@ -483,13 +483,13 @@ class MatplotLibMap:
             x_to = node_to.lon
             y_to = node_to.lat
 
-            if i == 0:
-                x_from = self._mouse_click1[0]
-                y_from = self._mouse_click1[1]
-
-            if i == len(path) - 2:
-                x_to = self._mouse_click2[0]
-                y_to = self._mouse_click2[1]
+            # if i == 0:
+            #     x_from = self._mouse_click1[0]
+            #     y_from = self._mouse_click1[1]
+            #
+            # if i == len(path) - 2:
+            #     x_to = self._mouse_click2[0]
+            #     y_to = self._mouse_click2[1]
 
             plt.plot([x_from,x_to],[y_from,y_to],
                     marker          = '',
@@ -541,13 +541,13 @@ class MatplotLibMap:
             x_to = node_to.lon
             y_to = node_to.lat
 
-            if i == 0:
-                x_from = self._mouse_click1[0]
-                y_from = self._mouse_click1[1]
-
-            if i == len(path) - 2:
-                x_to = self._mouse_click2[0]
-                y_to = self._mouse_click2[1]
+            # if i == 0:
+            #     x_from = self._mouse_click1[0]
+            #     y_from = self._mouse_click1[1]
+            #
+            # if i == len(path) - 2:
+            #     x_to = self._mouse_click2[0]
+            #     y_to = self._mouse_click2[1]
 
             plt.plot([x_from,x_to],[y_from,y_to],
                     marker          = '',
