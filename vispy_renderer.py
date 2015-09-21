@@ -30,21 +30,25 @@ void main (void) {
 
 FRAG_SHADER = """
 varying float v_id;
+uniform vec3 color;
 void main()
 {
-   gl_FragColor = vec4(1,0,0,1);
+   gl_FragColor = vec4(color, 1);
 }
 """
 
 class Canvas(app.Canvas):
 
     # ---------------------------------
-    def __init__(self,arr_buffer, bbox):
+    def __init__(self, vbos, bbox):
         app.Canvas.__init__(self, keys='interactive', fullscreen=True)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
 
         self.vbos = []
-        for vbo in arr_buffer:
+        for vbo_info in vbos:
+            vbo = vbo_info[0]
+            color = vbo_info[1]
+
             self.l_bb_center = []
             vbuffer = np.array(vbo)
 
@@ -59,8 +63,7 @@ class Canvas(app.Canvas):
             self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * i_scale_factor / 2.0
 
             # Set uniform and attribute
-            self.program['a_position'] = gloo.VertexBuffer(arr_bounded)
-            self.vbos.append(arr_bounded)
+            self.vbos.append((arr_bounded, color))
 
             self.translate = 5.0
             self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
@@ -86,20 +89,24 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_key_press(self, event):
-        if event.text == ' ':
-            if self.timer.running:
-                self.timer.stop()
-            else:
-                self.timer.start()
+        if event.text == 'x':
+            self.theta += .5
+            self.phi += .5
+            self.model = np.dot(rotate(self.theta, (0, 0, 1)),
+                                rotate(self.phi, (0, 1, 0)))
+            self.program['u_model'] = self.model
+            self.update()
+        elif event.text == 'z':
+            self.theta += .5
+            self.phi += .5
+            self.model = np.dot(rotate(-self.theta, (0, 0, 1)),
+                                rotate(self.phi, (0, 1, 0)))
+            self.program['u_model'] = self.model
+            self.update()
 
     # ---------------------------------
     def on_timer(self, event):
-        self.theta += .5
-        self.phi += .5
-        self.model = np.dot(rotate(self.theta, (0, 0, 1)),
-                            rotate(self.phi, (0, 1, 0)))
-        self.program['u_model'] = self.model
-        self.update()
+        pass
 
     # ---------------------------------
     def on_resize(self, event):
@@ -120,10 +127,11 @@ class Canvas(app.Canvas):
     # ---------------------------------
     def on_draw(self, event):
         self.context.clear()
-
-        for vbo in self.vbos:
-            # Set uniform and attribute
+        for vbo_info in self.vbos:
+            vbo = vbo_info[0]
+            color = vbo_info[1]            # Set uniform and attribute
             self.program['a_position'] = gloo.VertexBuffer(vbo)
+            self.program['color'] = color
             self.program.draw('line_strip')
 
 

@@ -177,25 +177,25 @@ class MatplotLibMap:
         'primary': dict(
                 linestyle       = '-',
                 linewidth       = 6,
-                color           ='#ee82ee',
+                color           =  (0.933, 0.51, 0.933),  #'#ee82ee',
                 zorder          = -1,
         ),
         'primary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
-                color           = '#da70d6',
+                color           = (0.85, 0.44, 0.84), # '#da70d6',
                 zorder          = -1,
         ),
         'secondary': dict(
                 linestyle       = '-',
                 linewidth       = 6,
-                color           = '#d8bfd8',
+                color           = (0.85, 0.75, 0.85), # '#d8bfd8',
                 zorder          = -2,
         ),
         'secondary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
-                color           = '#d8bfd8',
+                color           = (0.85, 0.75, 0.85), # '#d8bfd8',
                 zorder          = -2,
         ),
         'tertiary': dict(
@@ -237,7 +237,7 @@ class MatplotLibMap:
         'default': dict(
                 linestyle       = '-',
                 linewidth       = 3,
-                color           = 'b',
+                color           = (0.0, 0.0, 0.0),
                 zorder          = -1,
                 ),
         }
@@ -640,15 +640,22 @@ def get_vbo(osm):
             'motorway_link'
         ]:
 
+            if wayType in list(MatplotLibMap.renderingRules.keys()):
+                thisRendering = MatplotLibMap.renderingRules[wayType]
+            else:
+                thisRendering = MatplotLibMap.renderingRules['default']
+
             for nCnt, nID in enumerate(osm.ways[nodeID].nds):
                 y = float(osm.nodes[nID].lat)
                 x = float(osm.nodes[nID].lon)
 
                 vbo.append([x,y])
 
-        if len(vbo) > 0:
-            vbos.append(vbo)
 
+        if len(vbo) > 0:
+            vbos.append((vbo, thisRendering['color']))
+
+    print(type(vbos[0]))
     return vbos
 
 def main():
