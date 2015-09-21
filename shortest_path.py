@@ -201,7 +201,7 @@ def bidirectional_dijkstra(graph, start, end):
     path_from_end = reconstruct_path(source_end_came_from, end, broken_node)
     path_from_end.reverse()
 
-    return path_from_start + path_from_end, source_start_paths_considered + source_end_paths_considered
+    return path_from_start + path_from_end, source_start_paths_considered, source_end_paths_considered
 
 def astar(graph, start, end, osm):
     pq = PriorityQueue()

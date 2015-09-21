@@ -451,16 +451,16 @@ class MatplotLibMap:
                 # Now both the points have been marked. Now try to find a path.
                 path_dijkstra, paths_considered_dijkstra = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
                 path_astar, paths_considered_astar = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
-                path_bidirectional_dijkstra, paths_considered_bidirectional_dijkstra = shortest_path.bidirectional_dijkstra(self._graph, self._node1.id, self._node2.id)
+                path_bidirectional_dijkstra, paths_considered_from_start_bidirectional_dijkstra, paths_considered_from_end_bidirectional_dijkstra = shortest_path.bidirectional_dijkstra(self._graph, self._node1.id, self._node2.id)
 
                 self.plot_path(self._get_axes('dijkstra', 'main'), path_dijkstra, MatplotLibMap.renderingRules['correct_path'], animate=False)
-                self.plot_considered_paths(self._get_axes('dijkstra', 'paths_considered'), path_dijkstra, paths_considered_dijkstra)
+                self.plot_considered_paths(self._get_axes('dijkstra', 'paths_considered'), path_dijkstra, (paths_considered_dijkstra, 'green'))
 
                 self.plot_path(self._get_axes('astar', 'main'), path_astar, MatplotLibMap.renderingRules['correct_path'], animate=False)
-                self.plot_considered_paths(self._get_axes('astar', 'paths_considered'), path_astar, paths_considered_astar)
+                self.plot_considered_paths(self._get_axes('astar', 'paths_considered'), path_astar, (paths_considered_astar, 'green'))
 
                 self.plot_path(self._get_axes('bidirectional_dijkstra', 'main'), path_bidirectional_dijkstra, MatplotLibMap.renderingRules['correct_path'], animate=False)
-                self.plot_considered_paths(self._get_axes('bidirectional_dijkstra', 'paths_considered'), path_bidirectional_dijkstra, paths_considered_bidirectional_dijkstra)
+                self.plot_considered_paths(self._get_axes('bidirectional_dijkstra', 'paths_considered'), path_bidirectional_dijkstra, (paths_considered_from_start_bidirectional_dijkstra, 'green'), (paths_considered_from_end_bidirectional_dijkstra, 'red'))
 
                 plt.savefig("shortest_path.png")
                 return self._node2
@@ -505,28 +505,31 @@ class MatplotLibMap:
 
         plt.draw()
 
-    def plot_considered_paths(self, axes, path, paths_considered):
+    def plot_considered_paths(self, axes, path, *paths_considered_tuples):
         plt.sca(axes)
         edges = zip(path, path[1:])
 
         # Render all the paths considered
-        for i, edge in enumerate(paths_considered):
-            node_from = self._osm.nodes[edge[0]]
-            node_to = self._osm.nodes[edge[1]]
-            x_from = node_from.lon
-            y_from = node_from.lat
-            x_to = node_to.lon
-            y_to = node_to.lat
+        for path_considered_tuple in paths_considered_tuples:
+            paths_considered = path_considered_tuple[0]
+            color = path_considered_tuple[1]
+            for i, edge in enumerate(paths_considered):
+                node_from = self._osm.nodes[edge[0]]
+                node_to = self._osm.nodes[edge[1]]
+                x_from = node_from.lon
+                y_from = node_from.lat
+                x_to = node_to.lon
+                y_to = node_to.lat
 
-            plt.plot([x_from,x_to],[y_from,y_to],
-                    marker          = '',
-                    linestyle       = '-',
-                    linewidth       = 1,
-                    color           = 'green',
-                    solid_capstyle  = 'round',
-                    solid_joinstyle = 'round',
-                    zorder          = 0,
-                    )
+                plt.plot([x_from,x_to],[y_from,y_to],
+                        marker          = '',
+                        linestyle       = '-',
+                        linewidth       = 1,
+                        color           = color,
+                        solid_capstyle  = 'round',
+                        solid_joinstyle = 'round',
+                        zorder          = 0,
+                        )
 
         # Render all the paths considered
         for i, edge in enumerate(edges):
