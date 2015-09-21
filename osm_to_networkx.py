@@ -18,8 +18,8 @@ import math
 import shortest_path
 import pylab as plt
 # import vispy.mpl_plot as plt
-# from vispy_renderer import *
-# from vispy import app
+from vispy_renderer import *
+from vispy import app
 
 class Node:
     def __init__(self, id, lon, lat):
@@ -285,6 +285,7 @@ class MatplotLibMap:
             plt.close(self._fig)
 
         self._fig = plt.figure(figsize=(20, 12), dpi=80, facecolor='grey', edgecolor='k')
+        self._fig.canvas.set_window_title("Shortest Path algorithms")
 
         self._render_axes0 = self._fig.add_subplot(221, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
         self._render_axes0.xaxis.set_visible(False)
@@ -438,6 +439,7 @@ class MatplotLibMap:
                 self.plot_path(self._get_axes('astar', 'main'), path_astar, MatplotLibMap.renderingRules['correct_path'], animate=False)
                 self.plot_considered_paths(self._get_axes('astar', 'paths_considered'), path_astar, paths_considered_astar)
 
+                plt.savefig("shortest_path.png")
                 return self._node2
 
     def plot_path(self, axes, path, rendering_style=None, animate=False):
@@ -597,7 +599,16 @@ def get_points_from_node_ids(osm, path):
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    matplotmap = MatplotLibMap(osm, graph)
+
+    if len(sys.argv) > 2:
+        if sys.argv[2] == 'renderer':
+            path, _ = shortest_path.dijkstra(graph, '1081079917', '65501510')
+            points = get_points_from_node_ids(osm, path)
+            c = Canvas(points)
+            app.run()
+    else:
+        matplotmap = MatplotLibMap(osm, graph)
+
     # path = shortest_path.dijkstra(graph, '1081079917', '65501510')
     # points = get_points_from_node_ids(osm, path)
     # c = Canvas(points)
