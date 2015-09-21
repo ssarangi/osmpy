@@ -81,11 +81,11 @@ class Canvas(app.Canvas):
         arr_bounded = arr_bounded * vbuffer.max(axis=0) * i_scale_factor
 
         arr_bounded = arr_bounded.astype(np.float32)
-        print arr_bounded
+        print(arr_bounded)
 
         self.l_bb_center = (vbuffer.max(axis=0) - vbuffer.min(axis=0)) * i_scale_factor / 2.0
 
-        print self.l_bb_center
+        print(self.l_bb_center)
 
         # Set uniform and attribute
         self.program['a_position'] = gloo.VertexBuffer(arr_bounded)

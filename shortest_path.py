@@ -119,6 +119,7 @@ def dijkstra(graph, start, end):
     cost_so_far = {}
     cost_so_far[start] = 0
     came_from[start] = None
+    paths_considered = []
 
     while not pq.empty():
         current = pq.pop()
@@ -132,9 +133,10 @@ def dijkstra(graph, start, end):
                 cost_so_far[neighbor] = new_cost
                 pq.push(neighbor, priority = new_cost)
                 came_from[neighbor] = current
+                paths_considered.append((current, neighbor))
 
     path = reconstruct_path(came_from, start, end)
-    return path
+    return path, paths_considered
 
 
 def astar(graph, start, end, osm):
@@ -145,6 +147,7 @@ def astar(graph, start, end, osm):
     cost_so_far = {}
     came_from[start] = None
     cost_so_far[start] = 0
+    paths_considered = []
 
     while not pq.empty():
         current = pq.pop()
@@ -152,17 +155,18 @@ def astar(graph, start, end, osm):
         if current == end:
             break
 
-        for next in graph.neighbors(current):
-            new_cost = cost_so_far[current] + float(graph.get_edge_data(current, next)['weight'])
-            if next not in cost_so_far or new_cost < cost_so_far[next]:
-                cost_so_far[next] = new_cost
-                priority = new_cost + calc_distance(osm.nodes[end], osm.nodes[next])
-                pq.push(next, priority = priority)
-                came_from[next] = current
+        for neighbor in graph.neighbors(current):
+            new_cost = cost_so_far[current] + float(graph.get_edge_data(current, neighbor)['weight'])
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+                priority = new_cost + calc_distance(osm.nodes[end], osm.nodes[neighbor])
+                pq.push(neighbor, priority = priority)
+                came_from[neighbor] = current
+                paths_considered.append((current, neighbor))
 
 
     path = reconstruct_path(came_from, start, end)
-    return path
+    return path, paths_considered
 
 def main():
     graph_edges = [(0, 1), (1, 5), (1, 7), (4, 5), (4, 8), (1, 6), (3, 7), (5, 9),

@@ -243,7 +243,7 @@ class MatplotLibMap:
         }
 
 
-    def __init__(self, graph):
+    def __init__(self, osm, graph):
         self._node1 = None
         self._node2 = None
         self._mouse_click1 = None
@@ -252,10 +252,12 @@ class MatplotLibMap:
         self._graph = graph
         self._osm = None
         self._fig = None
-        self._render_axes = None
 
         # Matplotlib data members
         self._node_plots = []
+        self._osm = osm
+
+        self.setup_figure()
 
     @property
     def node1(self):
@@ -265,35 +267,58 @@ class MatplotLibMap:
     def node2(self):
         return self._node2
 
-    def render(self, osm, plot_nodes=False, new_plot = True):
-        self._osm = osm
-
+    def setup_figure(self):
         # get bounds from OSM data
-        minX = float(osm.bounds['minlon'])
-        maxX = float(osm.bounds['maxlon'])
-        minY = float(osm.bounds['minlat'])
-        maxY = float(osm.bounds['maxlat'])
+        minX = float(self._osm.bounds['minlon'])
+        maxX = float(self._osm.bounds['maxlon'])
+        minY = float(self._osm.bounds['minlat'])
+        maxY = float(self._osm.bounds['maxlat'])
 
-        if new_plot:
-            self._fig = plt.figure()
-            self._render_axes = self._fig.add_subplot(111,autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
-            self._render_axes.xaxis.set_visible(False)
-            self._render_axes.yaxis.set_visible(False)
-            plt.subplots_adjust(bottom=0.2)
-            axcheckbox = plt.axes([0.13, 0.05, 0.25, 0.075])
-            axnext = plt.axes([0.81, 0.05, 0.1, 0.075])
-            clear_button = Button(axnext, 'Clear')
-            clear_button.on_clicked(self.__clear_button_clicked__)
-            animate_button = CheckButtons(axcheckbox, ('Show Nodes', 'Animate'), (False, False))
-            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
-            # check_buttons = CheckButtons(ax, ('Show Nodes', 'Animate'), (False, False))
-        else:
-            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
-            plt.cla()
-            plt.subplot(111, autoscale_on=False,xlim=(minX,maxX),ylim=(minY,maxY))
+        if self._fig is not None:
+            plt.close(self._fig)
 
-        for idx, nodeID in enumerate(osm.ways.keys()):
-            wayTags = osm.ways[nodeID].tags
+        self._fig = plt.figure(figsize=(20, 12), dpi=80, facecolor='grey', edgecolor='k')
+
+        self._render_axes0 = self._fig.add_subplot(221, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes0.xaxis.set_visible(False)
+        self._render_axes0.yaxis.set_visible(False)
+        plt.title("Dijkstra")
+
+        self._render_axes1 = self._fig.add_subplot(222, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes1.xaxis.set_visible(False)
+        self._render_axes1.yaxis.set_visible(False)
+        plt.title("A Star")
+
+        self._render_axes2 = self._fig.add_subplot(223, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes2.xaxis.set_visible(False)
+        self._render_axes2.yaxis.set_visible(False)
+        plt.title("Dijkstra Paths Considered")
+
+        self._render_axes3 = self._fig.add_subplot(224, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes3.xaxis.set_visible(False)
+        self._render_axes3.yaxis.set_visible(False)
+        plt.title("A Star Paths Considered")
+
+        self.render(self._render_axes0)
+        self.render(self._render_axes1)
+
+        self._axes = {}
+        self._axes['dijkstra'] = {}
+        self._axes['astar'] = {}
+        self._axes['dijkstra']['main'] = self._render_axes0
+        self._axes['dijkstra']['paths_considered'] = self._render_axes2
+
+        self._axes['astar']['main'] = self._render_axes1
+        self._axes['astar']['paths_considered'] = self._render_axes3
+        plt.show()
+
+    def _get_axes(self, algo, graph_type):
+        return self._axes[algo][graph_type]
+
+    def render(self, axes, plot_nodes=False):
+        plt.sca(axes)
+        for idx, nodeID in enumerate(self._osm.ways.keys()):
+            wayTags = self._osm.ways[nodeID].tags
             wayType = None
             if 'highway' in wayTags.keys():
                 wayType = wayTags['highway']
@@ -318,9 +343,9 @@ class MatplotLibMap:
                 else:
                     thisRendering = MatplotLibMap.renderingRules['default']
 
-                for nCnt, nID in enumerate(osm.ways[nodeID].nds):
-                    y = float(osm.nodes[nID].lat)
-                    x = float(osm.nodes[nID].lon)
+                for nCnt, nID in enumerate(self._osm.ways[nodeID].nds):
+                    y = float(self._osm.nodes[nID].lat)
+                    x = float(self._osm.nodes[nID].lon)
 
                     self._node_map[(x, y)] = nID
 
@@ -338,17 +363,14 @@ class MatplotLibMap:
                                 picker=2
                         )
 
-                        if plot_nodes == True and (nCnt == 0 or nCnt == len(osm.ways[nodeID].nds) - 1):
+                        if plot_nodes == True and (nCnt == 0 or nCnt == len(self._osm.ways[nodeID].nds) - 1):
                             plt.plot(x, y,'ro', zorder=5)
 
                     oldX = x
                     oldY = y
 
-        if new_plot:
-            # but_ax=plt.subplot2grid((8,4),(7,0),colspan=1)
-            # reset_button=Button(but_ax,'Reset')
-            self._fig.canvas.mpl_connect('pick_event', self.__onclick__)
-            plt.show()
+        self._fig.canvas.mpl_connect('pick_event', self.__onclick__)
+        plt.draw()
 
     def __clear_button_clicked__(self, event):
         print("Right Click")
@@ -356,7 +378,7 @@ class MatplotLibMap:
         self._node2 = None
         self._mouse_click1 = None
         self._mouse_click2 = None
-        self.render(self._osm, plot_nodes=False, new_plot=False)
+        self.render(self._osm, plot_nodes=False)
 
     def __onclick__(self, event):
         threshold = 0.001
@@ -375,6 +397,11 @@ class MatplotLibMap:
             if self._node1 is None:
                 self._node1 = Node(node_id, point[0], point[1])
                 self._mouse_click1 = (event.mouseevent.xdata, event.mouseevent.ydata)
+                plt.sca(self._get_axes('dijkstra', 'main'))
+                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+                plt.sca(self._get_axes('astar', 'main'))
+                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+                plt.draw()
                 return self._node1
             else:
                 # Do not allow clicking of node id's within 100 node distances
@@ -385,25 +412,27 @@ class MatplotLibMap:
                 self._mouse_click2 = (event.mouseevent.xdata, event.mouseevent.ydata)
                 print("Both points marked")
 
-                # import simple_router
-                # path = simple_router.run_simple_router(sys.argv[1])
-                # self.plot_path(path, MatplotLibMap.renderingRules['correct_path'])
-
-                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+                plt.sca(self._get_axes('dijkstra', 'main'))
+                plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
+                plt.sca(self._get_axes('astar', 'main'))
                 plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
                 plt.draw()
 
                 # Now both the points have been marked. Now try to find a path.
-                path = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
-                # path = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
-                self.plot_path(path, MatplotLibMap.renderingRules['correct_path'], animate=False)
+                path_dijkstra, paths_considered_dijkstra = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
+                path_astar, paths_considered_astar = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
+
+                self.plot_path(self._get_axes('dijkstra', 'main'), path_dijkstra, MatplotLibMap.renderingRules['correct_path'], animate=False)
+                self.plot_considered_paths(self._get_axes('dijkstra', 'paths_considered'), path_dijkstra, paths_considered_dijkstra)
+
+                self.plot_path(self._get_axes('astar', 'main'), path_astar, MatplotLibMap.renderingRules['correct_path'], animate=False)
+                self.plot_considered_paths(self._get_axes('astar', 'paths_considered'), path_astar, paths_considered_astar)
 
                 return self._node2
 
-    def plot_path(self, path, rendering_style=None, animate=False):
+    def plot_path(self, axes, path, rendering_style=None, animate=False):
+        plt.sca(axes)
         edges = zip(path, path[1:])
-
-        path_coords = []
 
         if rendering_style is None:
             thisRendering = MatplotLibMap.renderingRules['calculated_path']
@@ -422,13 +451,9 @@ class MatplotLibMap:
                 x_from = self._mouse_click1[0]
                 y_from = self._mouse_click1[1]
 
-            path_coords.append([x_from, y_from])
-
             if i == len(path) - 2:
                 x_to = self._mouse_click2[0]
                 y_to = self._mouse_click2[1]
-
-                path_coords.append([x_to, y_to])
 
             plt.plot([x_from,x_to],[y_from,y_to],
                     marker          = '',
@@ -444,6 +469,59 @@ class MatplotLibMap:
                 plt.draw()
 
         plt.draw()
+
+    def plot_considered_paths(self, axes, path, paths_considered):
+        plt.sca(axes)
+        edges = zip(path, path[1:])
+
+        # Render all the paths considered
+        for i, edge in enumerate(paths_considered):
+            node_from = self._osm.nodes[edge[0]]
+            node_to = self._osm.nodes[edge[1]]
+            x_from = node_from.lon
+            y_from = node_from.lat
+            x_to = node_to.lon
+            y_to = node_to.lat
+
+            plt.plot([x_from,x_to],[y_from,y_to],
+                    marker          = '',
+                    linestyle       = '-',
+                    linewidth       = 1,
+                    color           = 'green',
+                    solid_capstyle  = 'round',
+                    solid_joinstyle = 'round',
+                    zorder          = 0,
+                    )
+
+        # Render all the paths considered
+        for i, edge in enumerate(edges):
+            node_from = self._osm.nodes[edge[0]]
+            node_to = self._osm.nodes[edge[1]]
+            x_from = node_from.lon
+            y_from = node_from.lat
+            x_to = node_to.lon
+            y_to = node_to.lat
+
+            if i == 0:
+                x_from = self._mouse_click1[0]
+                y_from = self._mouse_click1[1]
+
+            if i == len(path) - 2:
+                x_to = self._mouse_click2[0]
+                y_to = self._mouse_click2[1]
+
+            plt.plot([x_from,x_to],[y_from,y_to],
+                    marker          = '',
+                    linestyle       = '-',
+                    linewidth       = 3,
+                    color           = 'black',
+                    solid_capstyle  = 'round',
+                    solid_joinstyle = 'round',
+                    zorder          = 1,
+                    )
+
+        plt.draw()
+
 
 def convert_to_pixel_coords(lat, lon):
     map_width = 400
@@ -509,12 +587,11 @@ def get_points_from_node_ids(osm, path):
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
-    # matplotmap = MatplotLibMap(graph)
-    # matplotmap.render(osm, plot_nodes=False)
-    path = shortest_path.dijkstra(graph, '1081079917', '65501510')
-    points = get_points_from_node_ids(osm, path)
-    c = Canvas(points)
-    app.run()
+    matplotmap = MatplotLibMap(osm, graph)
+    # path = shortest_path.dijkstra(graph, '1081079917', '65501510')
+    # points = get_points_from_node_ids(osm, path)
+    # c = Canvas(points)
+    # app.run()
 
 if __name__ == "__main__":
     main()
