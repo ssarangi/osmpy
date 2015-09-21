@@ -16,8 +16,6 @@ from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
 
-W, H = 400, 400
-
 i_scale_factor = 10
 
 VERT_SHADER = """
@@ -41,54 +39,50 @@ void main()
 class Canvas(app.Canvas):
 
     # ---------------------------------
-    def __init__(self,arr_buffer):
-        app.Canvas.__init__(self, keys='interactive', size=(W, H))
-
+    def __init__(self,arr_buffer, bbox):
+        app.Canvas.__init__(self, keys='interactive', fullscreen=True)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
-        self.l_bb_center = []
-        vbuffer = np.array(arr_buffer)
 
-        arr_min = np.full(vbuffer.shape, vbuffer.min(axis=0))
-        # arr_max = np.full(vbuffer.shape, vbuffer.max(axis=0))
+        self.vbos = []
+        for vbo in arr_buffer:
+            self.l_bb_center = []
+            vbuffer = np.array(vbo)
 
-        arr_bounded = vbuffer - arr_min
+            arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1]])
 
-        arr_bounded *= i_scale_factor
-        print(arr_bounded)
+            arr_bounded = vbuffer - arr_min
 
-        arr_bounded = arr_bounded.astype(np.float32)
-        # print arr_bounded
+            arr_bounded *= i_scale_factor
 
-        self.l_bb_center = (vbuffer.max(axis=0) - vbuffer.min(axis=0)) * i_scale_factor / 2.0
+            arr_bounded = arr_bounded.astype(np.float32)
 
-        # print self.l_bb_center
+            self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * i_scale_factor / 2.0
 
-        # Set uniform and attribute
-        self.program['a_position'] = gloo.VertexBuffer(arr_bounded)
+            # Set uniform and attribute
+            self.program['a_position'] = gloo.VertexBuffer(arr_bounded)
+            self.vbos.append(arr_bounded)
 
-        self.translate = 5
-        self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
-        self.model = np.eye(4, dtype=np.float32)
+            self.translate = 5
+            self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
+            self.model = np.eye(4, dtype=np.float32)
 
-        gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
-        self.projection = perspective(45.0, self.size[0] /
-                                      float(self.size[1]), 1.0, 100.0)
+            gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
+            self.projection = perspective(45.0, self.size[0] /
+                                          float(self.size[1]), 1.0, 100.0)
 
-        # self.projection = ortho(-1, 1, -1, 1, -10, 10)
+            self.program['u_projection'] = self.projection
+            self.program['u_model'] = self.model
+            self.program['u_view'] = self.view
 
-        self.program['u_projection'] = self.projection
-        self.program['u_model'] = self.model
-        self.program['u_view'] = self.view
+            self.theta = 0
+            self.phi = 0
 
-        self.theta = 0
-        self.phi = 0
+            self.context.set_clear_color('white')
+            self.context.set_state('translucent')
 
-        self.context.set_clear_color('white')
-        self.context.set_state('translucent')
+            self.timer = app.Timer('auto', connect=self.on_timer)
 
-        self.timer = app.Timer('auto', connect=self.on_timer)
-
-        self.show()
+            self.show()
 
     # ---------------------------------
     def on_key_press(self, event):
@@ -113,7 +107,6 @@ class Canvas(app.Canvas):
         self.projection = perspective(45.0, event.size[0] /
                                       float(event.size[1]), 1.0, 100.0)
 
-        # self.projection = ortho(-1, 1, -1, 1, -10, 10)
         self.program['u_projection'] = self.projection
 
     # ---------------------------------
@@ -127,7 +120,11 @@ class Canvas(app.Canvas):
     # ---------------------------------
     def on_draw(self, event):
         self.context.clear()
-        self.program.draw('lines')
+
+        for vbo in self.vbos:
+            # Set uniform and attribute
+            self.program['a_position'] = gloo.VertexBuffer(vbo)
+            self.program.draw('lines')
 
 
 if __name__ == '__main__':

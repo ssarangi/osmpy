@@ -257,7 +257,6 @@ class MatplotLibMap:
         self._node_plots = []
         self._osm = osm
         #list of lats and longs
-        self.l_coordinates = []
 
         self.setup_figure()
 
@@ -268,11 +267,6 @@ class MatplotLibMap:
     @property
     def node2(self):
         return self._node2
-
-    @property
-    def coordinates(self):
-        return self.l_coordinates
-
 
     def setup_figure(self):
         # get bounds from OSM data
@@ -400,7 +394,6 @@ class MatplotLibMap:
 
         self._fig.canvas.mpl_connect('pick_event', self.__onclick__)
         plt.draw()
-        self.l_coordinates.append([x,y])
 
     def __clear_button_clicked__(self, event):
         print("Right Click")
@@ -623,6 +616,41 @@ def get_points_from_node_ids(osm, path):
 
     return np.array(path_coords).astype(np.float32)
 
+def get_vbo(osm):
+    vbos = []  # A list of individual vbo's
+    for idx, nodeID in enumerate(osm.ways.keys()):
+        vbo = []
+        wayTags = osm.ways[nodeID].tags
+        wayType = None
+        if 'highway' in wayTags.keys():
+            wayType = wayTags['highway']
+
+        if wayType in [
+            'primary',
+            'primary_link',
+            'unclassified',
+            'secondary',
+            'secondary_link',
+            'tertiary',
+            'tertiary_link',
+            'residential',
+            'trunk',
+            'trunk_link',
+            'motorway',
+            'motorway_link'
+        ]:
+
+            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
+                y = float(osm.nodes[nID].lat)
+                x = float(osm.nodes[nID].lon)
+
+                vbo.append([x,y])
+
+        if len(vbo) > 0:
+            vbos.append(vbo)
+
+    return vbos
+
 def main():
     graph, osm = read_osm(sys.argv[1])
     print(osm.bounds)
@@ -631,7 +659,13 @@ def main():
         if sys.argv[2] == 'renderer':
             path, _ = shortest_path.dijkstra(graph, '1081079917', '65501510')
             points = get_points_from_node_ids(osm, path)
-            c = Canvas(points)
+            minX = float(osm.bounds['minlon'])
+            maxX = float(osm.bounds['maxlon'])
+            minY = float(osm.bounds['minlat'])
+            maxY = float(osm.bounds['maxlat'])
+
+            vbos = get_vbo(osm)
+            c = Canvas(vbos, [minX, minY, maxX, maxY])
             app.run()
     else:
         # path, _ = shortest_path.bidirectional_dijkstra(graph, '1081079917', '65501510')
