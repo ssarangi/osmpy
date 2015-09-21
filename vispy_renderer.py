@@ -16,7 +16,7 @@ from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
 
-i_scale_factor = 10
+i_scale_factor = 100
 
 VERT_SHADER = """
 uniform mat4 u_model;
@@ -62,13 +62,13 @@ class Canvas(app.Canvas):
             self.program['a_position'] = gloo.VertexBuffer(arr_bounded)
             self.vbos.append(arr_bounded)
 
-            self.translate = 5
+            self.translate = 5.0
             self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
             self.model = np.eye(4, dtype=np.float32)
 
             gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
             self.projection = perspective(45.0, self.size[0] /
-                                          float(self.size[1]), 1.0, 100.0)
+                                          float(self.size[1]), 1.0, 1000.0)
 
             self.program['u_projection'] = self.projection
             self.program['u_model'] = self.model
@@ -124,7 +124,7 @@ class Canvas(app.Canvas):
         for vbo in self.vbos:
             # Set uniform and attribute
             self.program['a_position'] = gloo.VertexBuffer(vbo)
-            self.program.draw('lines')
+            self.program.draw('line_strip')
 
 
 if __name__ == '__main__':
