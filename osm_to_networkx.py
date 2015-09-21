@@ -284,40 +284,58 @@ class MatplotLibMap:
         if self._fig is not None:
             plt.close(self._fig)
 
-        self._fig = plt.figure(figsize=(20, 12), dpi=80, facecolor='grey', edgecolor='k')
+        self._fig = plt.figure(figsize=(26, 12), dpi=80, facecolor='grey', edgecolor='k')
         self._fig.canvas.set_window_title("Shortest Path algorithms")
 
-        self._render_axes0 = self._fig.add_subplot(221, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes0 = self._fig.add_subplot(231, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
         self._render_axes0.xaxis.set_visible(False)
         self._render_axes0.yaxis.set_visible(False)
         plt.title("Dijkstra")
 
-        self._render_axes1 = self._fig.add_subplot(222, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes1 = self._fig.add_subplot(232, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
         self._render_axes1.xaxis.set_visible(False)
         self._render_axes1.yaxis.set_visible(False)
         plt.title("A Star")
 
-        self._render_axes2 = self._fig.add_subplot(223, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes2 = self._fig.add_subplot(233, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
         self._render_axes2.xaxis.set_visible(False)
         self._render_axes2.yaxis.set_visible(False)
-        plt.title("Dijkstra Paths Considered")
+        plt.title("Bidirectional")
 
-        self._render_axes3 = self._fig.add_subplot(224, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes3 = self._fig.add_subplot(234, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
         self._render_axes3.xaxis.set_visible(False)
         self._render_axes3.yaxis.set_visible(False)
+        plt.title("Dijkstra Paths Considered")
+
+        self._render_axes4 = self._fig.add_subplot(235, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes4.xaxis.set_visible(False)
+        self._render_axes4.yaxis.set_visible(False)
         plt.title("A Star Paths Considered")
 
-        self.render(self._render_axes0)
-        self.render(self._render_axes1)
+        self._render_axes5 = self._fig.add_subplot(236, autoscale_on = False, xlim = (minX,maxX), ylim = (minY,maxY))
+        self._render_axes5.xaxis.set_visible(False)
+        self._render_axes5.yaxis.set_visible(False)
+        plt.title("Bidirectional Paths Considered")
 
         self._axes = {}
         self._axes['dijkstra'] = {}
         self._axes['astar'] = {}
+        self._axes['bidirectional_dijkstra'] = {}
+
         self._axes['dijkstra']['main'] = self._render_axes0
-        self._axes['dijkstra']['paths_considered'] = self._render_axes2
+        self._axes['dijkstra']['paths_considered'] = self._render_axes3
 
         self._axes['astar']['main'] = self._render_axes1
-        self._axes['astar']['paths_considered'] = self._render_axes3
+        self._axes['astar']['paths_considered'] = self._render_axes4
+
+        self._axes['bidirectional_dijkstra']['main'] = self._render_axes2
+        self._axes['bidirectional_dijkstra']['paths_considered'] = self._render_axes5
+
+        self._main_rendering_axes = [self._render_axes0, self._render_axes1, self._render_axes2]
+
+        for rendering_axes in self._main_rendering_axes:
+            self.render(rendering_axes)
+
         plt.show()
 
     def _get_axes(self, algo, graph_type):
@@ -408,10 +426,11 @@ class MatplotLibMap:
             if self._node1 is None:
                 self._node1 = Node(node_id, point[0], point[1])
                 self._mouse_click1 = (event.mouseevent.xdata, event.mouseevent.ydata)
-                plt.sca(self._get_axes('dijkstra', 'main'))
-                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
-                plt.sca(self._get_axes('astar', 'main'))
-                plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'bo', zorder=10)
+
+                for axes in self._main_rendering_axes:
+                    plt.sca(axes)
+                    plt.plot(self._mouse_click1[0], self._mouse_click1[1], 'ro', zorder=100)
+
                 plt.draw()
                 return self._node1
             else:
@@ -423,21 +442,25 @@ class MatplotLibMap:
                 self._mouse_click2 = (event.mouseevent.xdata, event.mouseevent.ydata)
                 print("Both points marked")
 
-                plt.sca(self._get_axes('dijkstra', 'main'))
-                plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
-                plt.sca(self._get_axes('astar', 'main'))
-                plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'bo', zorder=10)
+                for axes in self._main_rendering_axes:
+                    plt.sca(axes)
+                    plt.plot(self._mouse_click2[0], self._mouse_click2[1], 'ro', zorder=100)
+
                 plt.draw()
 
                 # Now both the points have been marked. Now try to find a path.
                 path_dijkstra, paths_considered_dijkstra = shortest_path.dijkstra(self._graph, self._node1.id, self._node2.id)
                 path_astar, paths_considered_astar = shortest_path.astar(self._graph, self._node1.id, self._node2.id, self._osm)
+                path_bidirectional_dijkstra, paths_considered_bidirectional_dijkstra = shortest_path.bidirectional_dijkstra(self._graph, self._node1.id, self._node2.id)
 
                 self.plot_path(self._get_axes('dijkstra', 'main'), path_dijkstra, MatplotLibMap.renderingRules['correct_path'], animate=False)
                 self.plot_considered_paths(self._get_axes('dijkstra', 'paths_considered'), path_dijkstra, paths_considered_dijkstra)
 
                 self.plot_path(self._get_axes('astar', 'main'), path_astar, MatplotLibMap.renderingRules['correct_path'], animate=False)
                 self.plot_considered_paths(self._get_axes('astar', 'paths_considered'), path_astar, paths_considered_astar)
+
+                self.plot_path(self._get_axes('bidirectional_dijkstra', 'main'), path_bidirectional_dijkstra, MatplotLibMap.renderingRules['correct_path'], animate=False)
+                self.plot_considered_paths(self._get_axes('bidirectional_dijkstra', 'paths_considered'), path_bidirectional_dijkstra, paths_considered_bidirectional_dijkstra)
 
                 plt.savefig("shortest_path.png")
                 return self._node2
@@ -607,6 +630,7 @@ def main():
             c = Canvas(points)
             app.run()
     else:
+        # path, _ = shortest_path.bidirectional_dijkstra(graph, '1081079917', '65501510')
         matplotmap = MatplotLibMap(osm, graph)
 
     # path = shortest_path.dijkstra(graph, '1081079917', '65501510')

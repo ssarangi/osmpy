@@ -139,6 +139,70 @@ def dijkstra(graph, start, end):
     return path, paths_considered
 
 
+def bidirectional_dijkstra(graph, start, end):
+    pq_start = PriorityQueue()
+    pq_start.push(start, priority=0)
+
+    pq_end = PriorityQueue()
+    pq_end.push(end, priority=0)
+
+    source_start_came_from = {}
+    source_start_came_from[start] = None
+
+    source_end_came_from = {}
+    source_end_came_from[end] = None
+
+    source_start_cost_so_far = {}
+    source_start_cost_so_far[start] = 0
+
+    source_end_cost_so_far = {}
+    source_end_cost_so_far[end] = 0
+
+    source_start_paths_considered = []
+    source_end_paths_considered = []
+
+    source_start_paths_considered = []
+    source_end_paths_considered = []
+
+    broken_node = None
+
+    while not pq_start.empty() and not pq_end.empty():
+        current_from_start = pq_start.pop()
+        current_from_end = pq_end.pop()
+
+        # If either of the node is found in the other then terminate
+        if current_from_start in source_end_came_from:
+            broken_node = current_from_start
+            break
+
+        if current_from_end in source_start_came_from:
+            broken_node = current_from_end
+            break
+
+        for neighbor in graph.neighbors(current_from_start):
+            new_cost = source_start_cost_so_far[current_from_start] + float(graph.get_edge_data(current_from_start, neighbor)['weight'])
+            if neighbor not in source_start_cost_so_far or new_cost < source_start_cost_so_far[neighbor]:
+                source_start_cost_so_far[neighbor] = new_cost
+                pq_start.push(neighbor, priority = new_cost)
+                source_start_came_from[neighbor] = current_from_start
+                source_start_paths_considered.append((current_from_start, neighbor))
+
+
+        for neighbor in graph.neighbors(current_from_end):
+            new_cost = source_end_cost_so_far[current_from_end] + float(graph.get_edge_data(current_from_end, neighbor)['weight'])
+            if neighbor not in source_end_cost_so_far or new_cost < source_end_cost_so_far[neighbor]:
+                source_end_cost_so_far[neighbor] = new_cost
+                pq_end.push(neighbor, priority = new_cost)
+                source_end_came_from[neighbor] = current_from_end
+                source_end_paths_considered.append((current_from_end, neighbor))
+
+
+    path_from_start = reconstruct_path(source_start_came_from, start, broken_node)
+    path_from_end = reconstruct_path(source_end_came_from, end, broken_node)
+    path_from_end.reverse()
+
+    return path_from_start + path_from_end, source_start_paths_considered + source_end_paths_considered
+
 def astar(graph, start, end, osm):
     pq = PriorityQueue()
     pq.push(start, priority=0)
