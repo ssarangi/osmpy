@@ -15,6 +15,7 @@ import numpy as np
 from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
+import OpenGL.GL as gl
 
 i_scale_factor = 100
 # i_scale_factor = 1
@@ -175,6 +176,7 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_draw(self, event):
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         self.context.clear()
         for vbo_info in self.vbos:
             vbo = vbo_info[0]

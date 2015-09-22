@@ -405,6 +405,7 @@ class MatplotLibMap:
 
     def __onclick__(self, event):
         threshold = 0.001
+        print("Clicked mouse")
 
         if self._node1 is not None and self._node2 is not None:
             return None
