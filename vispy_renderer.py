@@ -68,7 +68,7 @@ class Canvas(app.Canvas):
             new_arr_bounded = []
 
             for i in range(0, len(arr_bounded)):
-                if i==0 or i==len(arr_bounded)-1:
+                if i == 0 or i == len(arr_bounded)-1:
                     new_arr_bounded.append(arr_bounded[i])
                 else:
                     new_arr_bounded.append(arr_bounded[i])
@@ -84,7 +84,7 @@ class Canvas(app.Canvas):
             for i in range(0, len(arr_bounded)):
                 point = arr_bounded[i]
                 curr_ax = ax[i]
-                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.03)
+                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.02)
                 new_vbo.append(point)
                 new_vbo.append(pt_offset)
 
