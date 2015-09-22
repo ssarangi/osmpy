@@ -16,15 +16,16 @@ from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
 
-i_scale_factor = 100
+# i_scale_factor = 100
+i_scale_factor = 1
 
 VERT_SHADER = """
 uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
-attribute vec2 a_position;
+attribute vec3 a_position;
 void main (void) {
-    gl_Position = u_projection * u_view * u_model * vec4(a_position, 4.0,1.0);
+    gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
 }
 """
 
@@ -52,7 +53,7 @@ class Canvas(app.Canvas):
             self.l_bb_center = []
             vbuffer = np.array(vbo)
 
-            arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1]])
+            arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
 
             arr_bounded = vbuffer - arr_min
 
@@ -62,8 +63,23 @@ class Canvas(app.Canvas):
 
             self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * i_scale_factor / 2.0
 
+            new_vbo = []
+
+            axis = zip(arr_bounded, arr_bounded[1:])
+            # ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]]  for ax in axis]
+            ax = [[1, 1] for a in axis]
+
+            for i in  range(0, len(arr_bounded) - 1):
+                point = arr_bounded[i]
+                curr_ax = ax[i]
+                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.01)
+                new_vbo.append(point)
+                # new_vbo.append(pt_offset)
+                print(pt_offset)
+            new_vbo.append(arr_bounded[-1])
+
             # Set uniform and attribute
-            self.vbos.append((arr_bounded, color))
+            self.vbos.append((new_vbo, color))
 
             self.translate = 5.0
             self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
@@ -86,6 +102,23 @@ class Canvas(app.Canvas):
             self.timer = app.Timer('auto', connect=self.on_timer)
 
             self.show()
+
+    def extrude_point(self, curX, curY, axisVector, scale):
+        extrudedPoint = [curX, curY, scale, 1]
+        rotatedExtrudedPoint = [0, 0, 0]
+        a = curX
+        b = curY
+        u = axisVector[0]
+        v = axisVector[1]
+        x = extrudedPoint[0]
+        y = extrudedPoint[1]
+        z = extrudedPoint[2]
+
+        rotatedExtrudedPoint[0] = (a * v * v ) -  (u * ((b * v) - (u * x) - (v * y)) + (v * z))
+        rotatedExtrudedPoint[1] = (b * u * u) - (v * ((a * u) - (u * x) - (v * y)) - (u * z))
+        rotatedExtrudedPoint[2] = (a * v) - (b * u) - (v * x) + (u * y)
+
+        return rotatedExtrudedPoint
 
     # ---------------------------------
     def on_key_press(self, event):
