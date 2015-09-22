@@ -627,17 +627,17 @@ def get_vbo(osm):
 
         if wayType in [
             'primary',
-            # 'primary_link',
-            # 'unclassified',
-            # 'secondary',
-            # 'secondary_link',
-            # 'tertiary',
-            # 'tertiary_link',
-            # 'residential',
-            # 'trunk',
-            # 'trunk_link',
-            # 'motorway',
-            # 'motorway_link'
+            'primary_link',
+            'unclassified',
+            'secondary',
+            'secondary_link',
+            'tertiary',
+            'tertiary_link',
+            'residential',
+            'trunk',
+            'trunk_link',
+            'motorway',
+            'motorway_link'
         ]:
 
             if wayType in list(MatplotLibMap.renderingRules.keys()):
@@ -672,8 +672,8 @@ def main():
 
             vbos = get_vbo(osm)
 
-            # c = Canvas(vbos, [minX, minY, maxX, maxY])
-            c = Canvas([([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0])
+            c = Canvas(vbos, [minX, minY, maxX, maxY])
+            # c = Canvas([([[0.0, 0.0, 0.0],[1.0, 1.0, 0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0])
             app.run()
     else:
         # path, _ = shortest_path.bidirectional_dijkstra(graph, '1081079917', '65501510')

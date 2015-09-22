@@ -83,11 +83,15 @@ QUERY_TMPL = "http://overpass-api.de/api/map?bbox={0},{1},{2},{3}"
 query = QUERY_TMPL.format(6.08051,50.77248,6.08545,50.77662)
 
 response = ""
+import os
+print os.listdir(os.getcwd())
 try:
-    with open("map.xml", mode="r", encoding="utf8") as f:
+    with open('map.xml', mode="rb") as f:
         response = f.read()
         f.close()
 except:
+    import traceback
+    print traceback.print_exc()
     print("Nothing cached, ", query)
     xml_response = requests.get(query)
     response = xml_response.text

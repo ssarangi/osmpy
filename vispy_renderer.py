@@ -16,8 +16,8 @@ from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
 
-# i_scale_factor = 100
-i_scale_factor = 1
+i_scale_factor = 100
+# i_scale_factor = 1
 
 VERT_SHADER = """
 uniform mat4 u_model;
@@ -42,7 +42,7 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def __init__(self, vbos, bbox):
-        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(1680, 1050))
+        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0))
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
 
         self.vbos = []
@@ -51,10 +51,9 @@ class Canvas(app.Canvas):
             color = vbo_info[1]
 
             self.l_bb_center = []
+
             vbuffer = np.array(vbo)
-
             arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
-
             arr_bounded = vbuffer - arr_min
 
             arr_bounded *= i_scale_factor
@@ -64,19 +63,35 @@ class Canvas(app.Canvas):
             self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * i_scale_factor / 2.0
 
             new_vbo = []
-
             axis = zip(arr_bounded, arr_bounded[1:])
-            # ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]]  for ax in axis]
-            ax = [[1, 1] for a in axis]
+            ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]] for ax in axis]
+            old_ax = []
+            new_arr_bounded = []
 
-            for i in  range(0, len(arr_bounded) - 1):
+            for i in range(0, len(arr_bounded)):
+                if i==0 or i==len(arr_bounded)-1:
+                    new_arr_bounded.append(arr_bounded[i])
+                else:
+                    new_arr_bounded.append(arr_bounded[i])
+                    new_arr_bounded.append(arr_bounded[i])
+
+            new_ax = []
+            for i in range(0, len(ax)):
+                 new_ax.append(ax[i])
+                 new_ax.append(ax[i])
+
+            arr_bounded = new_arr_bounded
+            ax = new_ax
+            for i in range(0, len(arr_bounded)):
                 point = arr_bounded[i]
                 curr_ax = ax[i]
-                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.01)
+                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.03)
                 new_vbo.append(point)
-                # new_vbo.append(pt_offset)
-                print(pt_offset)
-            new_vbo.append(arr_bounded[-1])
+                new_vbo.append(pt_offset)
+                old_ax = curr_ax
+            # new_vbo.append(arr_bounded[-1])
+            # last_point = arr_bounded[-1]
+            # new_vbo.append(self.extrude_point(last_point[0], last_point[1], old_ax, 0.1))
 
             # Set uniform and attribute
             self.vbos.append((new_vbo, color))
@@ -106,6 +121,7 @@ class Canvas(app.Canvas):
     def extrude_point(self, curX, curY, axisVector, scale):
         extrudedPoint = [curX, curY, scale, 1]
         rotatedExtrudedPoint = [0, 0, 0]
+        axisVector = self.normalizeVec(axisVector)
         a = curX
         b = curY
         u = axisVector[0]
@@ -117,8 +133,13 @@ class Canvas(app.Canvas):
         rotatedExtrudedPoint[0] = (a * v * v ) -  (u * ((b * v) - (u * x) - (v * y)) + (v * z))
         rotatedExtrudedPoint[1] = (b * u * u) - (v * ((a * u) - (u * x) - (v * y)) - (u * z))
         rotatedExtrudedPoint[2] = (a * v) - (b * u) - (v * x) + (u * y)
-
         return rotatedExtrudedPoint
+
+    def normalizeVec(self, axis):
+        import math
+        length = math.sqrt((axis[0] * axis[0]) + (axis[1] * axis[1]))
+        return [axis[0]/length, axis[1]/length]
+
 
     # ---------------------------------
     def on_key_press(self, event):
@@ -165,7 +186,7 @@ class Canvas(app.Canvas):
             color = vbo_info[1]            # Set uniform and attribute
             self.program['a_position'] = gloo.VertexBuffer(vbo)
             self.program['color'] = color
-            self.program.draw('line_strip')
+            self.program.draw('triangle_strip')
 
 
 if __name__ == '__main__':
