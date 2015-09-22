@@ -65,7 +65,6 @@ class Canvas(app.Canvas):
             new_vbo = []
             axis = zip(arr_bounded, arr_bounded[1:])
             ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]] for ax in axis]
-            old_ax = []
             new_arr_bounded = []
 
             for i in range(0, len(arr_bounded)):
@@ -88,10 +87,6 @@ class Canvas(app.Canvas):
                 pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.03)
                 new_vbo.append(point)
                 new_vbo.append(pt_offset)
-                old_ax = curr_ax
-            # new_vbo.append(arr_bounded[-1])
-            # last_point = arr_bounded[-1]
-            # new_vbo.append(self.extrude_point(last_point[0], last_point[1], old_ax, 0.1))
 
             # Set uniform and attribute
             self.vbos.append((new_vbo, color))
