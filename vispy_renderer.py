@@ -220,7 +220,7 @@ class Canvas(app.Canvas):
             self.zoom = 10
             return
 
-        self.translate += event.delta[1]
+        self.translate += event.delta[1] / 10
         self.translate = max(-1, self.translate)
         self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate))
         self.program['u_view'] = self.view
@@ -231,7 +231,7 @@ class Canvas(app.Canvas):
         gl.glEnable(gl.GL_VERTEX_PROGRAM_POINT_SIZE)
         gl.glEnable(gl.GL_POINT_SPRITE)
 
-        self.context.clear()
+        self.context.clear(color=(0.3, 0.3, 0.3, 1.0))
         if self.wireframe:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         else:
@@ -246,13 +246,8 @@ class Canvas(app.Canvas):
             self.program['a_position'] = gloo.VertexBuffer(vbo)
             self.program['a_texcoord'] = tex_coords
             self.program['color'] = color
+            self.program['point_size'] = 1
             self.program.draw('triangles', index_buffer)
-
-            # Render the nodes
-            # self.program['a_position'] = gloo.VertexBuffer([vbo[0], vbo[1], vbo[-2], vbo[-1]])
-            # self.program.draw(gl.GL_POINTS)
-
-
 
 if __name__ == '__main__':
     c = Canvas()
