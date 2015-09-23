@@ -24,6 +24,7 @@ uniform mat4 u_view;
 uniform mat4 u_projection;
 attribute vec3 a_position;
 attribute vec2 a_texcoord;
+attribute float point_size;
 
 // Varyings
 varying vec2 v_texcoord;
@@ -31,6 +32,7 @@ varying vec2 v_texcoord;
 void main (void) {
     v_texcoord = a_texcoord;
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
+    gl_PointSize = point_size;
 }
 """
 
@@ -226,6 +228,9 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_draw(self, event):
+        gl.glEnable(gl.GL_VERTEX_PROGRAM_POINT_SIZE)
+        gl.glEnable(gl.GL_POINT_SPRITE)
+
         self.context.clear()
         if self.wireframe:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -242,6 +247,11 @@ class Canvas(app.Canvas):
             self.program['a_texcoord'] = tex_coords
             self.program['color'] = color
             self.program.draw('triangles', index_buffer)
+
+            # Render the nodes
+            # self.program['a_position'] = gloo.VertexBuffer([vbo[0], vbo[1], vbo[-2], vbo[-1]])
+            # self.program.draw(gl.GL_POINTS)
+
 
 
 if __name__ == '__main__':
