@@ -104,16 +104,17 @@ class Canvas(app.Canvas):
             for i in range(0, len(arr_bounded)):
                 point = arr_bounded[i]
                 curr_ax = ax[i]
-                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.02)
-                new_vbo.append(point)
+                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.01)
+                pt_offset1 = self.extrude_point(point[0], point[1], curr_ax, -0.01)
+                new_vbo.append(pt_offset1)
                 new_vbo.append(pt_offset)
 
-            #Create IBO
+            # Create IBO
             ibo_template = np.array([0,1,2,2,1,3])
             full_ibo = np.array([ibo_template + (i * 4) for i in range(0, (len(vbo)) - 1)])
             full_ibo = full_ibo.flatten().astype(np.uint32)
-            # Set uniform and attribute
 
+            # Set uniform and attribute
             tex_coords_fractions = np.array(range(0, int(len(new_vbo)/2)))
             tex_coords_fractions = tex_coords_fractions / (len(new_vbo)/2 - 1.0)
 
@@ -125,8 +126,6 @@ class Canvas(app.Canvas):
 
             uv_coords = list(zip(lower_tuple, upper_tuple))
 
-
-            # tex_coords = np.array([[0, 0], [0, 1], [1, 0], [1, 1]]).astype(np.float32)
             self.vbos.append((new_vbo, uv_coords, color, full_ibo))
 
             self.translate = 5.0
