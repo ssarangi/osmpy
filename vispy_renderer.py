@@ -104,10 +104,10 @@ class Canvas(app.Canvas):
             for i in range(0, len(arr_bounded)):
                 point = arr_bounded[i]
                 curr_ax = ax[i]
-                pt_offset = self.extrude_point(point[0], point[1], curr_ax, 0.01)
-                pt_offset1 = self.extrude_point(point[0], point[1], curr_ax, -0.01)
-                new_vbo.append(pt_offset1)
-                new_vbo.append(pt_offset)
+                pt_offset_pos = self.extrude_point(point[0], point[1], curr_ax, 0.01)
+                pt_offset_neg = self.extrude_point(point[0], point[1], curr_ax, -0.01)
+                new_vbo.append(pt_offset_neg)
+                new_vbo.append(pt_offset_pos)
 
             # Create IBO
             ibo_template = np.array([0,1,2,2,1,3])
