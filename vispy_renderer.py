@@ -40,21 +40,109 @@ FRAG_SHADER = """
 varying float v_id;
 uniform vec3 color;
 uniform sampler2D u_texture;
+uniform int use_textures;
 varying vec2 v_texcoord;
 
 void main()
 {
-    gl_FragColor = texture2D(u_texture, v_texcoord);
-    gl_FragColor.a = 1.0;
-    // gl_FragColor = vec4(color, 1.0) * gl_FragColor;
-    gl_FragColor = mix(gl_FragColor, vec4(color, 1.0), 0.45);
+    if (use_textures == 1)
+    {
+        gl_FragColor = texture2D(u_texture, v_texcoord);
+        gl_FragColor.a = 1.0;
+        gl_FragColor = mix(gl_FragColor, vec4(color, 1.0), 0.45);
+    }
+    else
+        gl_FragColor = vec4(color, 1.0);
 }
 """
+
+def normalize_vec(axis):
+    import math
+    length = math.sqrt((axis[0] * axis[0]) + (axis[1] * axis[1]))
+    return [axis[0]/length, axis[1]/length]
+
+def extrude_point(curX, curY, axisVector, scale):
+    extrudedPoint = [curX, curY, scale, 1]
+    rotatedExtrudedPoint = [0, 0, 0]
+    axisVector = normalize_vec(axisVector)
+    a = curX
+    b = curY
+    u = axisVector[0]
+    v = axisVector[1]
+    x = extrudedPoint[0]
+    y = extrudedPoint[1]
+    z = extrudedPoint[2]
+
+    rotatedExtrudedPoint[0] = (a * v * v ) -  (u * ((b * v) - (u * x) - (v * y)) + (v * z))
+    rotatedExtrudedPoint[1] = (b * u * u) - (v * ((a * u) - (u * x) - (v * y)) - (u * z))
+    rotatedExtrudedPoint[2] = (a * v) - (b * u) - (v * x) + (u * y)
+    return rotatedExtrudedPoint
+
+def generate_tex_coords(vbo):
+    # Set uniform and attribute
+    tex_coords_fractions = np.array(range(0, int(len(vbo)/2)))
+    tex_coords_fractions = tex_coords_fractions / (len(vbo)/2 - 1.0)
+
+    lower_row = np.full(tex_coords_fractions.shape, [0])
+    upper_row = np.full(tex_coords_fractions.shape, [1])
+
+    lower_tuple = list(zip(lower_row, tex_coords_fractions))
+    upper_tuple = list(zip(upper_row, tex_coords_fractions))
+
+    uv_coords = list(zip(lower_tuple, upper_tuple))
+    return uv_coords
+
+def generate_ibo(vbo):
+    # Create IBO
+    ibo_template = np.array([0,1,2,2,1,3])
+    ibo = np.array([ibo_template + (i * 4) for i in range(0, (len(vbo)) - 1)])
+    ibo = ibo.flatten().astype(np.uint32)
+    return ibo
+
+def generate_vbo(vbo, bbox, scale):
+    vbuffer = np.array(vbo)
+    arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
+    arr_bounded = vbuffer - arr_min
+
+    arr_bounded *= scale
+
+    arr_bounded = arr_bounded.astype(np.float32)
+
+    l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
+
+    new_vbo = []
+    axis = zip(arr_bounded, arr_bounded[1:])
+    ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]] for ax in axis]
+    new_arr_bounded = []
+
+    for i in range(0, len(arr_bounded)):
+        if i == 0 or i == len(arr_bounded)-1:
+            new_arr_bounded.append(arr_bounded[i])
+        else:
+            new_arr_bounded.append(arr_bounded[i])
+            new_arr_bounded.append(arr_bounded[i])
+
+    new_ax = []
+    for i in range(0, len(ax)):
+         new_ax.append(ax[i])
+         new_ax.append(ax[i])
+
+    arr_bounded = new_arr_bounded
+    ax = new_ax
+    for i in range(0, len(arr_bounded)):
+        point = arr_bounded[i]
+        curr_ax = ax[i]
+        pt_offset_pos = extrude_point(point[0], point[1], curr_ax, 0.01)
+        pt_offset_neg = extrude_point(point[0], point[1], curr_ax, -0.01)
+        new_vbo.append(pt_offset_neg)
+        new_vbo.append(pt_offset_pos)
+
+    return new_vbo
 
 class Canvas(app.Canvas):
 
     # ---------------------------------
-    def __init__(self, vbos, bbox, scale):
+    def __init__(self, road_vbos, other_vbos, bbox, scale):
         app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=True)
         gl.glEnable(gl.GL_MULTISAMPLE)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -66,116 +154,50 @@ class Canvas(app.Canvas):
         self.wireframe = False
         self.zoom = 0
 
-        self.vbos = []
+        self.road_vbos = []
+        self.other_vbos = []
         self.tex_coords = []
-        for vbo_info in vbos:
+        self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
+
+        for vbo_info in road_vbos:
+            vbo = vbo_info[0]
+            color = vbo_info[1]
+            new_vbo = generate_vbo(vbo, bbox, scale)
+            uv_coords = generate_tex_coords(new_vbo)
+            full_ibo = generate_ibo(vbo)
+            self.road_vbos.append((new_vbo, uv_coords, color, full_ibo))
+
+        for vbo_info in other_vbos:
             vbo = vbo_info[0]
             color = vbo_info[1]
 
-            self.l_bb_center = []
+            new_vbo = generate_vbo(vbo, bbox, scale)
+            uv_coords = generate_tex_coords(new_vbo)
+            full_ibo = generate_ibo(vbo)
+            self.other_vbos.append((new_vbo, uv_coords, color, full_ibo))
 
-            vbuffer = np.array(vbo)
-            arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
-            arr_bounded = vbuffer - arr_min
+        self.translate = 5.0
+        self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
+        self.model = np.eye(4, dtype=np.float32)
 
-            arr_bounded *= scale
+        gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
+        self.projection = perspective(45.0, self.size[0] /
+                                      float(self.size[1]), 1.0, 1000.0)
 
-            arr_bounded = arr_bounded.astype(np.float32)
+        self.program['u_projection'] = self.projection
+        self.program['u_model'] = self.model
+        self.program['u_view'] = self.view
 
-            self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
+        self.theta = 0
+        self.phi = 0
 
-            new_vbo = []
-            axis = zip(arr_bounded, arr_bounded[1:])
-            ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]] for ax in axis]
-            new_arr_bounded = []
+        self.context.set_clear_color('white')
+        self.context.set_state('translucent')
 
-            for i in range(0, len(arr_bounded)):
-                if i == 0 or i == len(arr_bounded)-1:
-                    new_arr_bounded.append(arr_bounded[i])
-                else:
-                    new_arr_bounded.append(arr_bounded[i])
-                    new_arr_bounded.append(arr_bounded[i])
+        # self.timer = app.Timer('auto', connect=self.on_timer)
+        self._timer = app.Timer('auto', connect=self.update, start=True)
 
-            new_ax = []
-            for i in range(0, len(ax)):
-                 new_ax.append(ax[i])
-                 new_ax.append(ax[i])
-
-            arr_bounded = new_arr_bounded
-            ax = new_ax
-            for i in range(0, len(arr_bounded)):
-                point = arr_bounded[i]
-                curr_ax = ax[i]
-                pt_offset_pos = self.extrude_point(point[0], point[1], curr_ax, 0.01)
-                pt_offset_neg = self.extrude_point(point[0], point[1], curr_ax, -0.01)
-                new_vbo.append(pt_offset_neg)
-                new_vbo.append(pt_offset_pos)
-
-            # Create IBO
-            ibo_template = np.array([0,1,2,2,1,3])
-            full_ibo = np.array([ibo_template + (i * 4) for i in range(0, (len(vbo)) - 1)])
-            full_ibo = full_ibo.flatten().astype(np.uint32)
-
-            # Set uniform and attribute
-            tex_coords_fractions = np.array(range(0, int(len(new_vbo)/2)))
-            tex_coords_fractions = tex_coords_fractions / (len(new_vbo)/2 - 1.0)
-
-            lower_row = np.full(tex_coords_fractions.shape, [0])
-            upper_row = np.full(tex_coords_fractions.shape, [1])
-
-            lower_tuple = list(zip(lower_row, tex_coords_fractions))
-            upper_tuple = list(zip(upper_row, tex_coords_fractions))
-
-            uv_coords = list(zip(lower_tuple, upper_tuple))
-
-            self.vbos.append((new_vbo, uv_coords, color, full_ibo))
-
-            self.translate = 5.0
-            self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
-            self.model = np.eye(4, dtype=np.float32)
-
-            gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
-            self.projection = perspective(45.0, self.size[0] /
-                                          float(self.size[1]), 1.0, 1000.0)
-
-            self.program['u_projection'] = self.projection
-            self.program['u_model'] = self.model
-            self.program['u_view'] = self.view
-            self.program['u_texture'] = self.bullseye
-
-            self.theta = 0
-            self.phi = 0
-
-            self.context.set_clear_color('white')
-            self.context.set_state('translucent')
-
-            # self.timer = app.Timer('auto', connect=self.on_timer)
-            self._timer = app.Timer('auto', connect=self.update, start=True)
-
-            self.show()
-
-    def extrude_point(self, curX, curY, axisVector, scale):
-        extrudedPoint = [curX, curY, scale, 1]
-        rotatedExtrudedPoint = [0, 0, 0]
-        axisVector = self.normalizeVec(axisVector)
-        a = curX
-        b = curY
-        u = axisVector[0]
-        v = axisVector[1]
-        x = extrudedPoint[0]
-        y = extrudedPoint[1]
-        z = extrudedPoint[2]
-
-        rotatedExtrudedPoint[0] = (a * v * v ) -  (u * ((b * v) - (u * x) - (v * y)) + (v * z))
-        rotatedExtrudedPoint[1] = (b * u * u) - (v * ((a * u) - (u * x) - (v * y)) - (u * z))
-        rotatedExtrudedPoint[2] = (a * v) - (b * u) - (v * x) + (u * y)
-        return rotatedExtrudedPoint
-
-    def normalizeVec(self, axis):
-        import math
-        length = math.sqrt((axis[0] * axis[0]) + (axis[1] * axis[1]))
-        return [axis[0]/length, axis[1]/length]
-
+        self.show()
 
     # ---------------------------------
     def on_key_press(self, event):
@@ -237,7 +259,7 @@ class Canvas(app.Canvas):
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
-        for vbo_info in self.vbos:
+        for vbo_info in self.road_vbos:
             vbo = np.array(vbo_info[0]).astype(np.float32)
             tex_coords = vbo_info[1]
             color = vbo_info[2]            # Set uniform and attribute
@@ -247,7 +269,21 @@ class Canvas(app.Canvas):
             self.program['a_texcoord'] = tex_coords
             self.program['color'] = color
             self.program['point_size'] = 1
+            self.program['u_texture'] = self.bullseye
+            self.program['use_textures'] = 1
             self.program.draw('triangles', index_buffer)
+
+        for vbo_info in self.other_vbos:
+            vbo = np.array(vbo_info[0]).astype(np.float32)
+            tex_coords = vbo_info[1]
+            color = vbo_info[2]            # Set uniform and attribute
+            ibo = vbo_info[3]
+            self.program['a_position'] = gloo.VertexBuffer(vbo)
+            self.program['a_texcoord'] = tex_coords
+            self.program['color'] = color
+            self.program['point_size'] = 1
+            self.program['use_textures'] = 0
+            self.program.draw('triangle_strip')
 
 if __name__ == '__main__':
     c = Canvas()

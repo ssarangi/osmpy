@@ -240,6 +240,13 @@ class MatplotLibMap:
                 color           = (1.0, 0.48, 0.0),
                 zorder          = 500,
                 ),
+
+        'other': dict(
+                linestyle       = '-',
+                linewidth       = 3,
+                color           = (0.6, 0.6, 0.6),
+                zorder          = 500,
+                ),
         }
 
 
@@ -618,11 +625,14 @@ def get_points_from_node_ids(osm, path):
     return np.array(path_coords).astype(np.float32)
 
 def get_vbo(osm):
-    vbos = []  # A list of individual vbo's
+    road_vbos = []  # A list of individual vbo's
+    other_vbos = []
+
     for idx, nodeID in enumerate(osm.ways.keys()):
         vbo = []
         wayTags = osm.ways[nodeID].tags
         wayType = None
+        thisRendering = MatplotLibMap.renderingRules['other']
         if 'highway' in wayTags.keys():
             wayType = wayTags['highway']
 
@@ -643,20 +653,20 @@ def get_vbo(osm):
 
             if wayType in list(MatplotLibMap.renderingRules.keys()):
                 thisRendering = MatplotLibMap.renderingRules[wayType]
-            else:
-                thisRendering = MatplotLibMap.renderingRules['default']
 
-            for nCnt, nID in enumerate(osm.ways[nodeID].nds):
-                y = float(osm.nodes[nID].lat)
-                x = float(osm.nodes[nID].lon)
+        for nCnt, nID in enumerate(osm.ways[nodeID].nds):
+            y = float(osm.nodes[nID].lat)
+            x = float(osm.nodes[nID].lon)
 
-                vbo.append([x,y, abs(thisRendering['zorder'] / 10000000.0)])
-
+            vbo.append([x,y, abs(thisRendering['zorder'] / 10000000.0)])
 
         if len(vbo) > 0:
-            vbos.append((vbo, thisRendering['color']))
+            if wayType is not None:
+                road_vbos.append((vbo, thisRendering['color']))
+            else:
+                other_vbos.append((vbo, thisRendering['color']))
 
-    return vbos
+    return road_vbos, other_vbos
 
 def main():
     graph, osm = read_osm(sys.argv[1])
@@ -671,9 +681,9 @@ def main():
             minY = float(osm.bounds['minlat'])
             maxY = float(osm.bounds['maxlat'])
 
-            vbos = get_vbo(osm)
+            road_vbos, other_vbos = get_vbo(osm)
 
-            c = Canvas(vbos, [minX, minY, maxX, maxY], scale=100)
+            c = Canvas(road_vbos, other_vbos, [minX, minY, maxX, maxY], scale=100)
             # c = Canvas([([[0.0, 0.0, 0.0],[0.5, 0.5, 0.0],[2.0,0.0,0.0],[0.0,0.0,0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0], scale=1)
             app.run()
     else:
