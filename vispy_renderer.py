@@ -47,7 +47,8 @@ void main()
 {
     gl_FragColor = texture2D(u_texture, v_texcoord);
     gl_FragColor.a = 1.0;
-    // gl_FragColor = vec4(color, 1);
+    // gl_FragColor = vec4(color, 1.0) * gl_FragColor;
+    gl_FragColor = mix(gl_FragColor, vec4(color, 1.0), 0.45);
 }
 """
 
@@ -57,6 +58,7 @@ class Canvas(app.Canvas):
     def __init__(self, vbos, bbox):
         app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0))
         gl.glEnable(gl.GL_MULTISAMPLE)
+        gl.glEnable(gl.GL_DEPTH_TEST)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
         img = misc.imread('bullseye.png')
         self.bullseye = gloo.Texture2D(img)
