@@ -54,8 +54,6 @@ class Way:
                     return [left]+rightsliced
             return [ar]
 
-
-
         slices = slice_array(self.nds, dividers)
 
         # create a way object for each node-array slice

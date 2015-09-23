@@ -283,7 +283,7 @@ class Canvas(app.Canvas):
             self.program['color'] = color
             self.program['point_size'] = 1
             self.program['use_textures'] = 0
-            self.program.draw('triangle_strip')
+            self.program.draw('line_strip')
 
 if __name__ == '__main__':
     c = Canvas()
