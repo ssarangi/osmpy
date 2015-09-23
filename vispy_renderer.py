@@ -99,6 +99,14 @@ def generate_ibo(vbo):
     ibo = ibo.flatten().astype(np.uint32)
     return ibo
 
+def cap_lines(p1, p2):
+    th = np.linspace(np.pi / 2.0, -np.pi / 2.0, 100)
+    center = (p1 + p2) / 2.0
+    radius = np.linalg.norm(center - p1)
+    x = center[0] + radius * np.cos(th)
+    y = center[1] + radius * np.sin(th)
+    vec = p2 - p1
+
 def generate_vbo(vbo, bbox, scale):
     vbuffer = np.array(vbo)
     arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
