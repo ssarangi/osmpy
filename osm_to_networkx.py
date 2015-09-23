@@ -70,6 +70,13 @@ class Way:
 
         return ret
 
+class Relation:
+    def __init__(self, id, osm):
+        self.osm = osm
+        self.id = id
+        self.nds = []
+        self.tags = {}
+
 class OSM:
     def __init__(self, filename_or_stream):
         """ File can be either a filename or stream/file object."""
@@ -107,6 +114,8 @@ class OSM:
                     bounds['minlon'] = float(attrs['minlon'])
                     bounds['maxlat'] = float(attrs['maxlat'])
                     bounds['minlat'] = float(attrs['minlat'])
+                elif name == 'relation':
+                    self.currElem = Relation(attrs['id'], superself)
 
             @classmethod
             def endElement(self,name):
