@@ -53,7 +53,7 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def __init__(self, vbos, bbox, scale):
-        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0))
+        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=True)
         gl.glEnable(gl.GL_MULTISAMPLE)
         gl.glEnable(gl.GL_DEPTH_TEST)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
@@ -148,7 +148,8 @@ class Canvas(app.Canvas):
             self.context.set_clear_color('white')
             self.context.set_state('translucent')
 
-            self.timer = app.Timer('auto', connect=self.on_timer)
+            # self.timer = app.Timer('auto', connect=self.on_timer)
+            self._timer = app.Timer('auto', connect=self.update, start=True)
 
             self.show()
 
