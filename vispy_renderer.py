@@ -16,6 +16,7 @@ from vispy import gloo
 from vispy import app
 from vispy.util.transforms import perspective, translate, rotate, ortho
 import OpenGL.GL as gl
+from scipy import misc
 
 i_scale_factor = 100
 # i_scale_factor = 1
@@ -25,7 +26,13 @@ uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
 attribute vec3 a_position;
+attribute vec2 a_texcoord;
+
+// Varyings
+varying vec2 v_texcoord;
+
 void main (void) {
+    v_texcoord = a_texcoord;
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
 }
 """
@@ -33,9 +40,14 @@ void main (void) {
 FRAG_SHADER = """
 varying float v_id;
 uniform vec3 color;
+uniform sampler2D u_texture;
+varying vec2 v_texcoord;
+
 void main()
 {
-   gl_FragColor = vec4(color, 1);
+    gl_FragColor = texture2D(u_texture, v_texcoord);
+    gl_FragColor.a = 1.0;
+    // gl_FragColor = vec4(color, 1);
 }
 """
 
@@ -44,9 +56,17 @@ class Canvas(app.Canvas):
     # ---------------------------------
     def __init__(self, vbos, bbox):
         app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0))
+        gl.glEnable(gl.GL_MULTISAMPLE)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
+        img = misc.imread('bullseye.png')
+        self.bullseye = gloo.Texture2D(img)
+        self.bullseye.interpolation = 'linear'
+        self.bullseye.wrapping = 'repeat'
+        self.wireframe = False
+        self.zoom = 0
 
         self.vbos = []
+        self.tex_coords = []
         for vbo_info in vbos:
             vbo = vbo_info[0]
             color = vbo_info[1]
@@ -90,7 +110,22 @@ class Canvas(app.Canvas):
                 new_vbo.append(pt_offset)
 
             # Set uniform and attribute
-            self.vbos.append((new_vbo, color))
+
+
+            tex_coords_fractions = np.array(range(0, int(len(new_vbo)/2)))
+            tex_coords_fractions = tex_coords_fractions / (len(new_vbo)/2 - 1.0)
+
+            lower_row = np.full(tex_coords_fractions.shape, [0])
+            upper_row = np.full(tex_coords_fractions.shape, [1])
+
+            lower_tuple = list(zip(lower_row, tex_coords_fractions))
+            upper_tuple = list(zip(upper_row, tex_coords_fractions))
+
+            uv_coords = list(zip(lower_tuple, upper_tuple))
+
+
+            # tex_coords = np.array([[0, 0], [0, 1], [1, 0], [1, 1]]).astype(np.float32)
+            self.vbos.append((new_vbo, uv_coords, color))
 
             self.translate = 5.0
             self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
@@ -103,6 +138,7 @@ class Canvas(app.Canvas):
             self.program['u_projection'] = self.projection
             self.program['u_model'] = self.model
             self.program['u_view'] = self.view
+            self.program['u_texture'] = self.bullseye
 
             self.theta = 0
             self.phi = 0
@@ -153,6 +189,8 @@ class Canvas(app.Canvas):
                                 rotate(self.phi, (0, 1, 0)))
             self.program['u_model'] = self.model
             self.update()
+        elif event.text == 'w':
+            self.wireframe = not self.wireframe
 
     # ---------------------------------
     def on_timer(self, event):
@@ -168,6 +206,14 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_mouse_wheel(self, event):
+        self.zoom += event.delta[1]
+        if self.zoom < -4:
+            self.zoom = -4
+            return
+        elif self.zoom > 10:
+            self.zoom = 10
+            return
+
         self.translate += event.delta[1]
         self.translate = max(-1, self.translate)
         self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate))
@@ -176,12 +222,18 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_draw(self, event):
-        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         self.context.clear()
+        if self.wireframe:
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+        else:
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+
         for vbo_info in self.vbos:
-            vbo = vbo_info[0]
-            color = vbo_info[1]            # Set uniform and attribute
+            vbo = np.array(vbo_info[0]).astype(np.float32)
+            tex_coords = vbo_info[1]
+            color = vbo_info[2]            # Set uniform and attribute
             self.program['a_position'] = gloo.VertexBuffer(vbo)
+            self.program['a_texcoord'] = tex_coords
             self.program['color'] = color
             self.program.draw('triangle_strip')
 
