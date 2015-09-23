@@ -178,67 +178,67 @@ class MatplotLibMap:
                 linestyle       = '-',
                 linewidth       = 6,
                 color           =  (0.933, 0.51, 0.933),  #'#ee82ee',
-                zorder          = 10,
+                zorder          = 400,
         ),
         'primary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = (0.85, 0.44, 0.84), # '#da70d6',
-                zorder          = 9,
+                zorder          = 300,
         ),
         'secondary': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = (0.85, 0.75, 0.85), # '#d8bfd8',
-                zorder          = 8,
+                zorder          = 200,
         ),
         'secondary_link': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = (0.85, 0.75, 0.85), # '#d8bfd8',
-                zorder          = 8,
+                zorder          = 200,
         ),
         'tertiary': dict(
                 linestyle       = '-',
                 linewidth       = 4,
                 color           = (1.0, 0.0, 0.0), #(0.0,0.0,0.7),
-                zorder          = 7,
+                zorder          = 100,
         ),
         'tertiary_link': dict(
                 linestyle       = '-',
                 linewidth       = 4,
                 color           = (1.0, 0.0, 0.0), #(0.0,0.0,0.7),
-                zorder          = 7,
+                zorder          = 100,
         ),
         'residential': dict(
                 linestyle       = '-',
                 linewidth       = 1,
                 color           = (1.0, 1.0, 0.0), #(0.1,0.1,0.1),
-                zorder          = 6,
+                zorder          = 50,
         ),
         'unclassified': dict(
                 linestyle       = ':',
                 linewidth       = 1,
                 color           = (0.5,0.5,0.5),
-                zorder          = 5,
+                zorder          = 10,
         ),
         'calculated_path': dict(
                 linestyle       = '-',
                 linewidth       = 4,
                 color           = (1.0,0.0,0.0),
-                zorder          = 200,
+                zorder          = 2000,
         ),
         'correct_path': dict(
                 linestyle       = '-',
                 linewidth       = 6,
                 color           = (0.6,0.8,0.0),
-                zorder          = 199,
+                zorder          = 1900,
         ),
         'default': dict(
                 linestyle       = '-',
                 linewidth       = 3,
                 color           = (1.0, 0.48, 0.0),
-                zorder          = 100,
+                zorder          = 500,
                 ),
         }
 
@@ -673,8 +673,8 @@ def main():
 
             vbos = get_vbo(osm)
 
-            c = Canvas(vbos, [minX, minY, maxX, maxY])
-            # c = Canvas([([[0.0, 0.0, 0.0],[0.5, 0.5, 0.0],[2.0,0.0,0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0])
+            c = Canvas(vbos, [minX, minY, maxX, maxY], scale=100)
+            # c = Canvas([([[0.0, 0.0, 0.0],[0.5, 0.5, 0.0],[2.0,0.0,0.0],[0.0,0.0,0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0], scale=1)
             app.run()
     else:
         # path, _ = shortest_path.bidirectional_dijkstra(graph, '1081079917', '65501510')

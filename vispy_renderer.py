@@ -18,9 +18,6 @@ from vispy.util.transforms import perspective, translate, rotate, ortho
 import OpenGL.GL as gl
 from scipy import misc
 
-i_scale_factor = 100
-# i_scale_factor = 1
-
 VERT_SHADER = """
 uniform mat4 u_model;
 uniform mat4 u_view;
@@ -55,7 +52,7 @@ void main()
 class Canvas(app.Canvas):
 
     # ---------------------------------
-    def __init__(self, vbos, bbox):
+    def __init__(self, vbos, bbox, scale):
         app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0))
         gl.glEnable(gl.GL_MULTISAMPLE)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -79,11 +76,11 @@ class Canvas(app.Canvas):
             arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
             arr_bounded = vbuffer - arr_min
 
-            arr_bounded *= i_scale_factor
+            arr_bounded *= scale
 
             arr_bounded = arr_bounded.astype(np.float32)
 
-            self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * i_scale_factor / 2.0
+            self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
 
             new_vbo = []
             axis = zip(arr_bounded, arr_bounded[1:])
@@ -111,8 +108,11 @@ class Canvas(app.Canvas):
                 new_vbo.append(point)
                 new_vbo.append(pt_offset)
 
+            #Create IBO
+            ibo_template = np.array([0,1,2,2,1,3])
+            full_ibo = np.array([ibo_template + (i * 4) for i in range(0, (len(vbo)) - 1)])
+            full_ibo = full_ibo.flatten().astype(np.uint32)
             # Set uniform and attribute
-
 
             tex_coords_fractions = np.array(range(0, int(len(new_vbo)/2)))
             tex_coords_fractions = tex_coords_fractions / (len(new_vbo)/2 - 1.0)
@@ -127,7 +127,7 @@ class Canvas(app.Canvas):
 
 
             # tex_coords = np.array([[0, 0], [0, 1], [1, 0], [1, 1]]).astype(np.float32)
-            self.vbos.append((new_vbo, uv_coords, color))
+            self.vbos.append((new_vbo, uv_coords, color, full_ibo))
 
             self.translate = 5.0
             self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
@@ -211,7 +211,7 @@ class Canvas(app.Canvas):
         self.zoom += event.delta[1]
         if self.zoom < -4:
             self.zoom = -4
-            return
+            # return
         elif self.zoom > 10:
             self.zoom = 10
             return
@@ -234,10 +234,12 @@ class Canvas(app.Canvas):
             vbo = np.array(vbo_info[0]).astype(np.float32)
             tex_coords = vbo_info[1]
             color = vbo_info[2]            # Set uniform and attribute
+            ibo = vbo_info[3]
+            index_buffer = gloo.IndexBuffer(ibo)
             self.program['a_position'] = gloo.VertexBuffer(vbo)
             self.program['a_texcoord'] = tex_coords
             self.program['color'] = color
-            self.program.draw('triangle_strip')
+            self.program.draw('triangles', index_buffer)
 
 
 if __name__ == '__main__':
