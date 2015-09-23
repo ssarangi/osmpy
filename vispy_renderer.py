@@ -195,6 +195,8 @@ class Canvas(app.Canvas):
         elif event.text == 'w':
             self.wireframe = not self.wireframe
 
+        self.update()
+
     # ---------------------------------
     def on_timer(self, event):
         pass
