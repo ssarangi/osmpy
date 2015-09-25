@@ -23,14 +23,14 @@ uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
 attribute vec3 a_position;
-attribute vec2 a_texcoord;
+// attribute vec2 a_texcoord;
 attribute float point_size;
 
 // Varyings
-varying vec2 v_texcoord;
+// varying vec2 v_texcoord;
 
 void main (void) {
-    v_texcoord = a_texcoord;
+    // v_texcoord = a_texcoord;
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
     gl_PointSize = point_size;
 }
@@ -39,12 +39,13 @@ void main (void) {
 FRAG_SHADER = """
 varying float v_id;
 uniform vec3 color;
-uniform sampler2D u_texture;
+// uniform sampler2D u_texture;
 uniform int use_textures;
-varying vec2 v_texcoord;
+// varying vec2 v_texcoord;
 
 void main()
 {
+/*
     if (use_textures == 1)
     {
         gl_FragColor = texture2D(u_texture, v_texcoord);
@@ -52,6 +53,7 @@ void main()
         gl_FragColor = mix(gl_FragColor, vec4(color, 1.0), 0.45);
     }
     else
+*/
         gl_FragColor = vec4(color, 1.0);
 }
 """
@@ -107,17 +109,18 @@ def cap_lines(p1, p2):
     y = center[1] + radius * np.sin(th)
     vec = p2 - p1
 
-def generate_vbo(vbo, bbox, scale):
-    vbuffer = np.array(vbo)
-    arr_min = np.full(vbuffer.shape, [bbox[0], bbox[1], 0.0])
+def scale_to_bb(l_points, bb, i_scale):
+    vbuffer = np.array(l_points)
+    arr_min = np.full(vbuffer.shape, [bb[0], bb[1], 0.0])
     arr_bounded = vbuffer - arr_min
 
-    arr_bounded *= scale
+    arr_bounded *= i_scale
 
     arr_bounded = arr_bounded.astype(np.float32)
+    return arr_bounded
 
-    l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
 
+def generate_vbo(arr_bounded):
     new_vbo = []
     axis = zip(arr_bounded, arr_bounded[1:])
     ax = [[ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]] for ax in axis]
@@ -164,26 +167,46 @@ class Canvas(app.Canvas):
 
         self.road_vbos = []
         self.other_vbos = []
+        self.single_vbo = []
+        self.single_ibo = []
         self.tex_coords = []
         self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
 
         for vbo_info in road_vbos:
             vbo = vbo_info[0]
             color = vbo_info[1]
-            new_vbo = generate_vbo(vbo, bbox, scale)
+            arr_bounded = scale_to_bb(vbo, bbox, scale)
+            new_vbo = generate_vbo(arr_bounded)
             uv_coords = generate_tex_coords(new_vbo)
             full_ibo = generate_ibo(vbo)
             self.road_vbos.append((new_vbo, uv_coords, color, full_ibo))
 
+        point_count = 0
         for vbo_info in other_vbos:
             vbo = vbo_info[0]
+
             color = vbo_info[1]
+            vbo = scale_to_bb(vbo, bbox, scale)
+            # new_vbo = generate_vbo(vbo, bbox, scale)
+            # uv_coords = generate_tex_coords(new_vbo)
+            # full_ibo = generate_ibo(vbo)
+            self.other_vbos.append(gloo.VertexBuffer(vbo))
+            start_point = point_count
+            # first point
+            self.single_ibo.append(point_count)
 
-            new_vbo = generate_vbo(vbo, bbox, scale)
-            uv_coords = generate_tex_coords(new_vbo)
-            full_ibo = generate_ibo(vbo)
-            self.other_vbos.append((new_vbo, uv_coords, color, full_ibo))
+            for i,point in enumerate(vbo):
+                self.single_vbo.append(point)
+                if i > 0:
+                    self.single_ibo.append(point_count)
+                    self.single_ibo.append(point_count)
+                point_count += 1
 
+            self.single_ibo.append(start_point)
+
+
+        self.single_vbo = gloo.VertexBuffer(self.single_vbo)
+        self.single_ibo = gloo.IndexBuffer(self.single_ibo)
         self.translate = 5.0
         self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
         self.model = np.eye(4, dtype=np.float32)
@@ -258,9 +281,6 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def on_draw(self, event):
-        gl.glEnable(gl.GL_VERTEX_PROGRAM_POINT_SIZE)
-        gl.glEnable(gl.GL_POINT_SPRITE)
-
         self.context.clear(color=(0.3, 0.3, 0.3, 1.0))
         if self.wireframe:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -281,17 +301,28 @@ class Canvas(app.Canvas):
             self.program['use_textures'] = 1
             self.program.draw('triangles', index_buffer)
 
-        for vbo_info in self.other_vbos:
-            vbo = np.array(vbo_info[0]).astype(np.float32)
-            tex_coords = vbo_info[1]
-            color = vbo_info[2]            # Set uniform and attribute
-            ibo = vbo_info[3]
-            self.program['a_position'] = gloo.VertexBuffer(vbo)
-            self.program['a_texcoord'] = tex_coords
-            self.program['color'] = color
-            self.program['point_size'] = 1
-            self.program['use_textures'] = 0
-            self.program.draw('line_strip')
+        # for vbo in self.other_vbos:
+        #     # tex_coords = vbo_info[1]
+        #     # color = vbo_info[2]            # Set uniform and attribute
+        #     # ibo = vbo_info[3]
+        #     self.program['a_position'] = vbo
+        #     # self.program['a_texcoord'] = tex_coords
+        #     self.program['color'] = (1.0, 1.0, 0.0)
+        #     self.program['point_size'] = 1
+        #     self.program['use_textures'] = 0
+        #     # self.program.draw('line_strip')
+
+
+        # tex_coords = vbo_info[1]
+        # color = vbo_info[2]            # Set uniform and attribute
+        # ibo = vbo_info[3]
+        self.program['a_position'] = self.single_vbo
+        # self.program['a_texcoord'] = tex_coords
+        self.program['color'] = (1.0, 1.0, 0.0)
+        self.program['point_size'] = 1
+        self.program['use_textures'] = 0
+        self.program.draw('lines', self.single_ibo)
+
 
 if __name__ == '__main__':
     c = Canvas()

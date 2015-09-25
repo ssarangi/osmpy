@@ -671,7 +671,8 @@ def get_vbo(osm):
             if wayType is not None:
                 road_vbos.append((vbo, thisRendering['color']))
             else:
-                other_vbos.append((vbo, thisRendering['color']))
+                if 'building' in wayTags:
+                    other_vbos.append((vbo, thisRendering['color']))
 
     return road_vbos, other_vbos
 
@@ -691,6 +692,7 @@ def main():
             road_vbos, other_vbos = get_vbo(osm)
 
             c = Canvas(road_vbos, other_vbos, [minX, minY, maxX, maxY], scale=100)
+            c.measure_fps()
             # c = Canvas([([[0.0, 0.0, 0.0],[0.5, 0.5, 0.0],[2.0,0.0,0.0],[0.0,0.0,0.0]], (0.0, 0.0, 0.0))], [-1.0, -1.0, 1.0, 1.0], scale=1)
             app.run()
     else:
