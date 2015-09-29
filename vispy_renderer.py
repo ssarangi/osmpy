@@ -154,9 +154,10 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def __init__(self, road_vbos, other_vbos, bbox, scale):
-        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=True)
+        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=False)
         gl.glEnable(gl.GL_MULTISAMPLE)
         gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glEnable(gl.GL_CULL_FACE)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
         img = misc.imread('bullseye.png')
         self.bullseye = gloo.Texture2D(img)
@@ -166,11 +167,14 @@ class Canvas(app.Canvas):
         self.zoom = 0
 
         self.road_vbos = []
+        self.road_ibo = []
         self.other_vbos = []
         self.single_vbo = []
         self.single_ibo = []
         self.tex_coords = []
         self.l_bb_center = (np.array([bbox[2], bbox[3]]) - np.array([bbox[0], bbox[1]])) * scale / 2.0
+
+        flattened_vbo = []
 
         for vbo_info in road_vbos:
             vbo = vbo_info[0]
@@ -178,9 +182,20 @@ class Canvas(app.Canvas):
             arr_bounded = scale_to_bb(vbo, bbox, scale)
             new_vbo = generate_vbo(arr_bounded)
             uv_coords = generate_tex_coords(new_vbo)
-            full_ibo = generate_ibo(vbo)
-            self.road_vbos.append((new_vbo, uv_coords, color, full_ibo))
+            # full_ibo = generate_ibo(vbo)
 
+            # print(full_ibo)
+            # for i in full_ibo:
+            #     self.road_ibo.append(i)
+
+            for p in new_vbo:
+                self.road_vbos.append(p)
+
+            #self.road_vbos.append((new_vbo, uv_coords, color, full_ibo))
+            for p in vbo:
+                flattened_vbo.append(p)
+
+        self.road_ibo = generate_ibo(flattened_vbo)
         point_count = 0
         for vbo_info in other_vbos:
             vbo = vbo_info[0]
@@ -207,6 +222,10 @@ class Canvas(app.Canvas):
 
         self.single_vbo = gloo.VertexBuffer(self.single_vbo)
         self.single_ibo = gloo.IndexBuffer(self.single_ibo)
+
+        self.road_vbo = gloo.VertexBuffer(self.road_vbos)
+        self.road_ibo = gloo.IndexBuffer(self.road_ibo)
+
         self.translate = 5.0
         self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate), dtype=np.float32)
         self.model = np.eye(4, dtype=np.float32)
@@ -287,19 +306,13 @@ class Canvas(app.Canvas):
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
-        for vbo_info in self.road_vbos:
-            vbo = np.array(vbo_info[0]).astype(np.float32)
-            tex_coords = vbo_info[1]
-            color = vbo_info[2]            # Set uniform and attribute
-            ibo = vbo_info[3]
-            index_buffer = gloo.IndexBuffer(ibo)
-            self.program['a_position'] = gloo.VertexBuffer(vbo)
-            self.program['a_texcoord'] = tex_coords
-            self.program['color'] = color
-            self.program['point_size'] = 1
-            self.program['u_texture'] = self.bullseye
-            self.program['use_textures'] = 1
-            self.program.draw('triangles', index_buffer)
+        self.program['a_position'] = self.road_vbo
+        #self.program['a_texcoord'] = tex_coords
+        self.program['color'] = (1.0, 1.0, 1.0)
+        self.program['point_size'] = 1
+        # self.program['u_texture'] = self.bullseye
+        self.program['use_textures'] = 1
+        self.program.draw('triangles', self.road_ibo)
 
         # for vbo in self.other_vbos:
         #     # tex_coords = vbo_info[1]
