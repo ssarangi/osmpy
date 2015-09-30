@@ -671,8 +671,8 @@ def get_vbo(osm):
             if wayType is not None:
                 road_vbos.append((vbo, thisRendering['color']))
             else:
-                if 'building' in wayTags:
-                    other_vbos.append((vbo, thisRendering['color']))
+                # if 'building' in wayTags:
+                other_vbos.append((vbo, thisRendering['color']))
 
     return road_vbos, other_vbos
 
