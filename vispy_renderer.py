@@ -154,11 +154,12 @@ class Canvas(app.Canvas):
 
     # ---------------------------------
     def __init__(self, road_vbos, other_vbos, bbox, scale):
-        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=False)
+        app.Canvas.__init__(self, keys='interactive', fullscreen=False, size=(800.0, 800.0), vsync=True)
         gl.glEnable(gl.GL_MULTISAMPLE)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_CULL_FACE)
         self.program = gloo.Program(VERT_SHADER, FRAG_SHADER)
+
         img = misc.imread('bullseye.png')
         self.bullseye = gloo.Texture2D(img)
         self.bullseye.interpolation = 'linear'
@@ -182,16 +183,10 @@ class Canvas(app.Canvas):
             arr_bounded = scale_to_bb(vbo, bbox, scale)
             new_vbo = generate_vbo(arr_bounded)
             uv_coords = generate_tex_coords(new_vbo)
-            # full_ibo = generate_ibo(vbo)
-
-            # print(full_ibo)
-            # for i in full_ibo:
-            #     self.road_ibo.append(i)
 
             for p in new_vbo:
                 self.road_vbos.append(p)
 
-            #self.road_vbos.append((new_vbo, uv_coords, color, full_ibo))
             for p in vbo:
                 flattened_vbo.append(p)
 
@@ -202,9 +197,6 @@ class Canvas(app.Canvas):
 
             color = vbo_info[1]
             vbo = scale_to_bb(vbo, bbox, scale)
-            # new_vbo = generate_vbo(vbo, bbox, scale)
-            # uv_coords = generate_tex_coords(new_vbo)
-            # full_ibo = generate_ibo(vbo)
             self.other_vbos.append(gloo.VertexBuffer(vbo))
             start_point = point_count
             # first point
@@ -244,7 +236,6 @@ class Canvas(app.Canvas):
         self.context.set_clear_color('white')
         self.context.set_state('translucent')
 
-        # self.timer = app.Timer('auto', connect=self.on_timer)
         self._timer = app.Timer('auto', connect=self.update, start=True)
 
         self.show()
@@ -270,6 +261,30 @@ class Canvas(app.Canvas):
 
         self.update()
 
+    def on_mouse_press(self, event):
+        pos_scene = event.pos[:3]
+        print(pos_scene)
+        bb_x = (self.l_bb_center[0] + pos_scene[0]) / abs(self.zoom)
+        bb_y = (self.l_bb_center[1] + pos_scene[1]) / abs(self.zoom)
+
+        print(bb_x, bb_y)
+
+        # find closest point to mouse and select it
+        # self.selected_point, self.selected_index = self.select_point(event)
+
+        # if no point was clicked add a new one
+        # if self.selected_point is None:
+        #     print("adding point", len(self.pos))
+        #     self._pos = np.append(self.pos, [pos_scene], axis=0)
+        #     self.set_data(pos=self.pos)
+        #     self.marker_colors = np.ones((len(self.pos), 4), dtype=np.float32)
+        #     self.selected_point = self.pos[-1]
+        #     self.selected_index = len(self.pos) - 1
+        #
+        # # update markers and highlights
+        # self.update_markers(self.selected_index)
+
+
     # ---------------------------------
     def on_timer(self, event):
         pass
@@ -285,6 +300,10 @@ class Canvas(app.Canvas):
     # ---------------------------------
     def on_mouse_wheel(self, event):
         self.zoom += event.delta[1]
+
+        if self.zoom < 0 and event.delta[1] > 0 or self.zoom > 0 and event.delta[1] < 0:
+            self.zoom = event.delta[1]
+
         if self.zoom < -4:
             self.zoom = -4
             # return
@@ -292,7 +311,7 @@ class Canvas(app.Canvas):
             self.zoom = 10
             return
 
-        self.translate += event.delta[1] / 10
+        self.translate += self.zoom / 10
         self.translate = max(-1, self.translate)
         self.view = translate((-self.l_bb_center[0], -self.l_bb_center[1], -self.translate))
         self.program['u_view'] = self.view
@@ -306,35 +325,24 @@ class Canvas(app.Canvas):
         else:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
-        self.program['a_position'] = self.road_vbo
-        #self.program['a_texcoord'] = tex_coords
-        self.program['color'] = (1.0, 1.0, 1.0)
-        self.program['point_size'] = 1
-        # self.program['u_texture'] = self.bullseye
-        self.program['use_textures'] = 1
-        self.program.draw('triangles', self.road_ibo)
-
-        # for vbo in self.other_vbos:
-        #     # tex_coords = vbo_info[1]
-        #     # color = vbo_info[2]            # Set uniform and attribute
-        #     # ibo = vbo_info[3]
-        #     self.program['a_position'] = vbo
-        #     # self.program['a_texcoord'] = tex_coords
-        #     self.program['color'] = (1.0, 1.0, 0.0)
-        #     self.program['point_size'] = 1
-        #     self.program['use_textures'] = 0
-        #     # self.program.draw('line_strip')
-
-
-        # tex_coords = vbo_info[1]
-        # color = vbo_info[2]            # Set uniform and attribute
-        # ibo = vbo_info[3]
+        # Draw Buildings
         self.program['a_position'] = self.single_vbo
         # self.program['a_texcoord'] = tex_coords
         self.program['color'] = (1.0, 1.0, 0.0)
         self.program['point_size'] = 1
-        self.program['use_textures'] = 0
+        # self.program['use_textures'] = 0
         self.program.draw('lines', self.single_ibo)
+
+
+        # Draw Roads
+        self.program['a_position'] = self.road_vbo
+        #self.program['a_texcoord'] = tex_coords
+        self.program['color'] = (0.0, 0.0, 0.7)
+        self.program['point_size'] = 1
+        # self.program['u_texture'] = self.bullseye
+        # self.program['use_textures'] = 0
+        self.program.draw('triangles', self.road_ibo)
+
 
 
 if __name__ == '__main__':
